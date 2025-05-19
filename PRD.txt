@@ -1,0 +1,174 @@
+# Project Requirements Document – **Wedding Pro Manager**
+
+> **Final Version – May 17 2025**
+
+---
+
+## 1 · Overview
+
+* **Tech stack**: Next.js (React) frontend, Supabase (Auth + Postgres) backend, Tailwind CSS v4 with ShadCN components. CDN/WAF roadmap via **Cloudflare**.
+* **Scale & Tenancy**: 500 + active users across multiple **organizations** (tenants). Each org receives a branded sub-domain (`org.weddingflow.app`), logo, and color palette. Single multi-tenant DB with **strict RLS isolation**—no cross-org super-admin view.
+* **Delivery targets**:
+  • **PWA** – installable, offline-cacheable, push-enabled.
+  • **App-store availability** via thin React-Native / Expo shell (timeline TBD).
+* **Purpose**: Central hub where managers post jobs and media professionals (Photographers, 2nd Photographers, Videographers, etc.) express interest and receive assignments. Key differentiators: per-mile travel pay, route previews, HoneyBook one-click import & real-time sync, robust role-based approvals, encrypted messaging, Venues knowledge base, and a roadmap for payments, Cloudflare hardening, and optional AI enhancements.
+
+---
+
+## 2 · User Roles & Account Lifecycle
+
+| Role            | Creation Flow                     | Approval Flow                            | Primary Capabilities                                                                                                                 |
+| --------------- | --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Admin (Org)** | Supabase invite during org signup | Auto-approved                            | Org settings, travel-pay rate, manage managers / employees, link / unlink HoneyBook, Stripe subscription mgmt, CSV export, analytics |
+| **Manager**     | Created **only** by Admin         | Auto-approved                            | Job CRUD, HoneyBook job import (post-link), assign / unassign staff, mark complete, create venue notes, manage drop requests         |
+| **Employee**    | Self-signup or invited            | Must be approved by Admin **or** Manager | Browse / express interest, withdraw, request drop, real-time chat, view assignments, add venue notes, manage notification prefs      |
+
+`approval_status ENUM('pending','approved','rejected')` stored in **users**.
+
+---
+
+## 3 · Core Workflows
+
+1. **Job Creation (Manager)** – Manual entry *or* HoneyBook import → travel-pay calculated (distance × rate).
+2. **Interest Expression (Employee)** – Select roles; the UI automatically **grays-out jobs that conflict** with existing assignments or expressed interests on the same date / time; employees may withdraw until assignment.
+3. **Fair Assignment (Manager)** – Sortable interested list (last-assignment time, distance, etc.); system enforces **no overlapping assignments**—attempting to assign a user already booked for overlapping times is blocked with an error tooltip.
+4. **Drop Request (Employee)** – Request → manager **accepts** (slot re-opens, job returns to *open*) or **declines**; 24 h SLA escalates to Admin.
+5. **Job Completion (Manager)** – Mark complete; triggers notifications & analytics.
+6. **HoneyBook OAuth / Sync** – Admin links account; Edge Functions register webhooks → real-time job updates.
+7. **Messaging** – Encrypted DMs & group chats (job threads) via Supabase Realtime.
+8. **Venues Knowledge Base** – CRUD venue records (address, parking tips, permits, markdown tips) searchable by org users.
+
+---
+
+## 4 · User Stories
+
+### 4.1 Admin
+
+* **US-A1**: Invite / remove Managers & Employees to control org access.
+* **US-A2**: Set a global travel-pay rate to keep payouts consistent.
+* **US-A3**: Link / unlink HoneyBook for automatic job imports.
+* **US-A4**: Manage subscriptions & payments via Stripe.
+* **US-A5**: Export job & KPI data to CSV.
+* **US-A6**: Pin important news/messages to the employee dashboard modal.
+
+### 4.2 Manager
+
+* **US-M1**: Create a job with roles and pay.
+* **US-M2**: Import HoneyBook project with one click.
+* **US-M3**: Sort interested employees by last assignment date for fairness.
+* **US-M4**: Approve / reject drop requests.
+* **US-M5**: Mark jobs complete.
+* **US-M6**: Post venue tips for future teams.
+* **US-M7**: Pin important news/messages to the employee dashboard modal.
+
+### 4.3 Employee
+
+* **US-E1**: Browse open jobs filtered by role / distance.
+* **US-E2**: Express interest in roles.
+* **US-E3**: Withdraw interest before assignment.
+* **US-E4**: Request a drop from an assigned job.
+* **US-E5**: Chat privately or in groups (with emojis and ability to view pinned messages).
+* **US-E6**: Read venue notes before arriving.
+* **US-E7**: Manage notification preferences.
+* **US-E8**: View pinned org news/messages in a dashboard modal upon login.
+
+---
+
+## 5 · Feature Requirements
+
+### 5.1 MVP Scope
+
+* Responsive role-based dashboards.
+* Job listings with filters, status chips, travel-pay badges, Google route hover preview **and automatic graying-out of time-conflicting jobs**.
+* Supabase Auth with `org_id` + `approval_status` RLS.
+* Admin-editable flat travel-pay rate.
+* **Preventative double-booking logic**: API-level overlap check; unique composite index (`user_id`, `time_range`) in **job\_assignments**.
+* Multi-channel notifications (Twilio SMS, Resend email, Supabase in-app).
+* HoneyBook import + webhook sync.
+* Drop Request workflow with SLA.
+* Fair Assignment filters.
+* Account approval dashboard.
+* CSV export (jobs, assignments, KPIs).
+* Venues module (CRUD, search, pinning).
+
+### 5.2 Post-MVP (High Priority)
+
+* Stripe Billing & marketing site.
+* Encrypted real-time messaging enhancements.
+* Cloudflare proxy, WAF, CDN.
+
+### 5.3 Experimental / AI (Opt-In)
+
+* Smart role matching, scheduling copilot, etc.
+
+---
+
+## 6 · Data Model Snapshot
+
+*(Full table list with key fields: orgs, users, jobs, job\_required\_roles, job\_interests, job\_assignments, drop\_requests, subscriptions, chats, chat\_members, messages (add: is\_pinned BOOLEAN DEFAULT false), venues, notifications, audit\_logs, org\_announcements (org\_id, user\_id, title, content, created\_at, pinned\_until TIMESTAMP, is\_active BOOLEAN)).*
+
+---
+
+## 7 · Key Performance Indicators
+
+* **Fill-Rate**, **Time-to-Assign**, **Avg. Travel Cost**, **Drop Request Rate**, **Fairness Index**, **On-time Completion**, **Messages per Active User (incl. emoji usage, pinned message interaction)**, **Venue Note Coverage**, **Subscription Churn**, **Org Announcement View Rate/CTR**.
+
+---
+
+## 8 · Non-Functional Requirements
+
+Performance, availability (99.9 %), security (MFA, encryption, rate limits), compliance (GDPR / CCPA), WCAG 2.1 AA accessibility, exhaustive code documentation, observability, and automated RLS tests.
+
+---
+
+## 9 · Quality & Testing Strategy
+
+* **Unit** (Vitest ≥ 90 %), **Integration**, **Contract** (Spectral), **E2E** (Playwright), **a11y**, messaging crypto tests, Stripe webhook tests; CI checks gate merges.
+
+---
+
+## 10 · Road-Map Snapshot
+
+* **Q3 2025**: Web MVP (PWA) with HoneyBook sync, Venues module.
+* **Q4 2025**: Stripe billing, marketing site, Expo wrapper, encrypted messaging beta (emojis, pinning), Org Announcements Modal, iOS push, Cloudflare proxy.
+* **Q1 2026**: Advanced analytics, weekly summary emails, AI feature pilot.
+
+---
+
+## 11 · AI Integration Opportunities (Opt-In)
+
+Smart role matching, scheduling copilot, chat assistant, doc summaries, predictive drop risk, semantic job search (feature-flagged, phased Q1–Q3 2026).
+
+---
+
+## 12 · Logical Dependency Chain
+
+1. Core infrastructure → 2. Auth & RLS → 3. Schema → 4. APIs / Edge Functions → 5. User Interface (Core Components & Styling) → 6. Dashboard skeleton → 7. Job CRUD + travel-pay → 8. Interest expression → 9. Fair assignment engine → 10. Drop request workflow → 11. Notifications → 12. Venues module → 13. HoneyBook OAuth & sync → 14. Encrypted messaging beta (with emoji & pinning) → 15. Org Announcements Modal → 16. Stripe billing & landing page → 17. Cloudflare integration → 18. Mobile shell (Expo) → 19. Optional AI.
+
+---
+
+## 13 · Risks & Mitigations
+
+| Risk                    | Impact         | Mitigation                         |
+| ----------------------- | -------------- | ---------------------------------- |
+| Misconfigured RLS       | Data leakage   | CI tests + pentest                 |
+| HoneyBook webhook flood | API overload   | Edge rate-limit, schema validation |
+| Stripe mis-billing      | Revenue loss   | Separate prod/test keys, E2E tests |
+| Messaging perf issues   | Poor UX        | Load test; monitor SLI             |
+| AI cost spikes          | Budget overrun | Feature flags, spend caps          |
+| Cloudflare mis-config   | Outage         | Staging, rollback                  |
+| App-store rejection     | Delay          | Follow guidelines, Expo EAS checks |
+| Key-person dependency   | Project stall  | Documented runbooks, dev backups   |
+| Low Org Announcement Engagement | Feature underutilized | Prominent but dismissible modal; track views; user feedback |
+| Emoji Rendering Issues  | Poor UX        | Use standard emoji library; cross-platform testing |
+| Pinned Message Clutter  | Poor UX        | Limit pinned messages; clear pinning guidelines |
+
+---
+
+## 14 · Open Items & Backlog
+
+Billing tier pricing, encryption lib benchmarks, Cloudflare WAF rules, venue autofill via Google Places, per-org AI feature toggles, specific emoji library selection, News/Messages modal design details (character limits, image support), notification strategy for new org announcements.
+
+---
+
+*This PRD is complete and ready for engineering sprint decomposition and estimation.*

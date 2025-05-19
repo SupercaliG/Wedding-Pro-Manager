@@ -1,0 +1,23 @@
+extends: ["spectral:oas", "spectral:asyncapi"]
+rules:
+  operation-description:
+    description: Operation must have a description.
+    given: $.paths[*][*]
+    severity: error
+    then:
+      field: description
+      function: truthy
+  operation-tags:
+    description: Operation must have tags.
+    given: $.paths[*][*]
+    severity: error
+    then:
+      field: tags
+      function: truthy
+  schema-description:
+    description: Schema objects must have a description.
+    given: $.components.schemas.*
+    severity: warn
+    then:
+      field: description
+      function: truthy

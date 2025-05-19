@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "generatedAt": "2025-05-18T06:05:03.642Z",
+    "tasksAnalyzed": 12,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 13,
+      "taskTitle": "Implement Encrypted Messaging",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the encrypted messaging implementation into subtasks covering database schema design, encryption implementation, Supabase Realtime integration, UI components for DMs, UI components for group chats, and testing strategy.",
+      "reasoning": "High complexity due to encryption requirements, real-time functionality, and multiple UI components. Requires careful consideration of security, performance, and user experience."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "Build Venues Knowledge Base",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the venues knowledge base into subtasks for database schema design, CRUD operations implementation, search/filtering functionality, and markdown rendering with pinning features.",
+      "reasoning": "Medium complexity with standard CRUD operations but enhanced by search functionality, markdown formatting, and RLS implementation."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "Implement Multi-Channel Notifications",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the multi-channel notifications into subtasks for Twilio SMS integration, Resend email integration, in-app notification center, user preference management, and notification trigger implementation.",
+      "reasoning": "High complexity due to multiple external API integrations, user preference management, and various notification triggers requiring careful coordination."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "Build CSV Export for Analytics",
+      "complexityScore": 4,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the CSV export functionality into subtasks for UI implementation, data query and CSV generation, and RLS enforcement for data access.",
+      "reasoning": "Lower complexity with straightforward CSV generation and standard UI components, though requires careful handling of data access permissions."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "Implement Account Approval Dashboard",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the account approval dashboard into subtasks for pending accounts list view, approval/rejection functionality, database updates, and notification implementation.",
+      "reasoning": "Medium complexity with standard dashboard UI components but requires careful handling of approval workflows and notification delivery."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "Build Org Announcements Modal",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the org announcements modal into subtasks for database schema design, modal UI implementation, view/engagement tracking, and display logic for login and dashboard.",
+      "reasoning": "Medium complexity with standard UI components but enhanced by tracking functionality and conditional display logic."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "Implement PWA and Offline Support",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the PWA implementation into subtasks for manifest configuration, service worker setup, offline caching strategy, push notification implementation, and testing across devices.",
+      "reasoning": "High complexity due to service worker configuration, offline caching strategies, and push notification implementation requiring careful testing across devices."
+    },
+    {
+      "taskId": 21,
+      "taskTitle": "Implement Stripe Billing and Subscription Management",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the Stripe integration into subtasks for API integration, subscription management UI, webhook handling, billing data security, subscription lifecycle management, and testing strategy.",
+      "reasoning": "High complexity due to financial transactions, webhook handling, and security considerations requiring careful implementation and thorough testing."
+    },
+    {
+      "taskId": 22,
+      "taskTitle": "Build Marketing Site and Landing Page",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the marketing site into subtasks for landing page design and implementation, features and pricing sections, Stripe checkout integration, and signup flow implementation.",
+      "reasoning": "Medium complexity with standard web development tasks but enhanced by Stripe checkout integration and signup flow requirements."
+    },
+    {
+      "taskId": 23,
+      "taskTitle": "Implement Cloudflare Proxy, WAF, and CDN",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the Cloudflare implementation into subtasks for DNS and proxy configuration, WAF rules setup, CDN optimization for static assets, and performance/security monitoring.",
+      "reasoning": "Medium-high complexity due to security configurations, performance optimization, and ongoing monitoring requirements."
+    },
+    {
+      "taskId": 24,
+      "taskTitle": "Build Expo/React Native Shell for App Stores",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the Expo/React Native shell into subtasks for project setup, component reuse strategy, platform-specific adaptations, build configuration, and app store submission preparation.",
+      "reasoning": "High complexity due to cross-platform considerations, component reuse challenges, and app store submission requirements."
+    },
+    {
+      "taskId": 25,
+      "taskTitle": "Implement AI Feature Flags and Pilot",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the AI feature flags implementation into subtasks for feature flag system design, role matching AI implementation, scheduling copilot implementation, feedback collection mechanism, and metrics analysis.",
+      "reasoning": "High complexity due to AI integration, feature flag management, and feedback collection requiring careful implementation and analysis."
+    }
+  ]
+}
