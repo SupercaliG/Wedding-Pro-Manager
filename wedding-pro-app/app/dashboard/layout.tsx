@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { isUserApproved, getCurrentUserProfile } from "@/utils/supabase/auth-helpers";
 import { NotificationCenterWrapper } from "@/components/notifications/notification-center-wrapper";
+import AnnouncementModal from "@/components/announcement-modal";
+import { AnnouncementProvider } from "@/contexts/announcement-context";
 
 export default async function DashboardLayout({
   children,
@@ -49,7 +51,8 @@ export default async function DashboardLayout({
   const isManager = profile?.role === 'Manager';
 
   return (
-    <div className="flex min-h-screen">
+    <AnnouncementProvider>
+      <div className="flex min-h-screen">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white p-4">
         <div className="text-xl font-bold mb-8">Wedding Pro</div>
@@ -68,6 +71,9 @@ export default async function DashboardLayout({
               <Link href="/dashboard/invite" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Invite Users
               </Link>
+              <Link href="/dashboard/admin/account-approvals" className="block py-2 px-4 rounded hover:bg-gray-700">
+                Account Approvals
+              </Link>
               <Link href="/dashboard/organization" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Organization Settings
               </Link>
@@ -79,6 +85,9 @@ export default async function DashboardLayout({
               </Link>
               <Link href="/dashboard/admin/drop-requests" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Drop Requests
+              </Link>
+              <Link href="/dashboard/admin/announcements" className="block py-2 px-4 rounded hover:bg-gray-700">
+                Announcements
               </Link>
             </>
           )}
@@ -93,6 +102,9 @@ export default async function DashboardLayout({
               <Link href="/dashboard/invite" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Invite Employees
               </Link>
+              <Link href="/dashboard/manager/account-approvals" className="block py-2 px-4 rounded hover:bg-gray-700">
+                Account Approvals
+              </Link>
               <Link href="/dashboard/manager/jobs" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Job Management
               </Link>
@@ -104,6 +116,9 @@ export default async function DashboardLayout({
               </Link>
               <Link href="/dashboard/manager/drop-requests" className="block py-2 px-4 rounded hover:bg-gray-700">
                 Drop Requests
+              </Link>
+              <Link href="/dashboard/admin/announcements" className="block py-2 px-4 rounded hover:bg-gray-700">
+                Announcements
               </Link>
             </>
           )}
@@ -158,7 +173,11 @@ export default async function DashboardLayout({
         <div className="p-8">
           {children}
         </div>
+        
+        {/* Announcement Modal */}
+        <AnnouncementModal />
       </div>
-    </div>
+      </div>
+    </AnnouncementProvider>
   );
 }

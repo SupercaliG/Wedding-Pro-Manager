@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { encodedRedirect } from "@/utils/utils";
 import { revalidatePath } from "next/cache";
 import { createNotificationService, NotificationEventType } from "@/utils/notifications/notification-service";
+import { getCurrentUserProfile } from "@/utils/supabase/auth-helpers";
 
 /**
  * Create a new organization with the first user as Admin
@@ -409,11 +410,11 @@ export const getOrganizationUsers = async (approvalStatus?: string) => {
   let query = supabase
     .from('profiles')
     .select(`
-      id, 
-      role, 
-      approval_status, 
-      full_name, 
-      phone_number, 
+      id,
+      role,
+      approval_status,
+      full_name,
+      phone_number,
       created_at,
       auth_users:id(email)
     `)
@@ -433,6 +434,174 @@ export const getOrganizationUsers = async (approvalStatus?: string) => {
   }
 
   return { data };
+};
+
+/**
+ * Get pending accounts using the Supabase Edge Function
+ * This provides an alternative to the direct database query method
+ */
+export const getPendingAccountsViaEdgeFunction = async () => {
+  const supabase = await createClient();
+  const origin = (await headers()).get("origin");
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be logged in" };
+  }
+
+  // Get current user's profile to get org_id
+  const profile = await getCurrentUserProfile();
+  if (!profile || !profile.org_id) {
+    return { error: "You are not part of an organization" };
+  }
+
+  try {
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('account-approval', {
+      body: {
+        action: 'fetch',
+        orgId: profile.org_id
+      }
+    });
+
+    if (error) {
+      console.error('Error calling account-approval function:', error);
+      return { error: "Failed to fetch pending accounts" };
+    }
+
+    return { data: data.data };
+  } catch (error) {
+    console.error('Error in getPendingAccountsViaEdgeFunction:', error);
+    return { error: "An unexpected error occurred" };
+  }
+};
+
+/**
+ * Approve a user account using the Supabase Edge Function
+ */
+export const approveAccountViaEdgeFunction = async (userId: string) => {
+  const supabase = await createClient();
+
+  // Get current user to verify they're an Admin or Manager
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "You must be logged in" };
+  }
+
+  // Verify current user is an Admin or Manager
+  const { data: currentUserProfile } = await supabase
+    .from('profiles')
+    .select('role, org_id, full_name')
+    .eq('id', user.id)
+    .single();
+
+  if (!currentUserProfile || (currentUserProfile.role !== 'Admin' && currentUserProfile.role !== 'Manager')) {
+    return { success: false, error: "Only Admins and Managers can approve accounts" };
+  }
+
+  try {
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('account-approval', {
+      body: {
+        action: 'approve',
+        userId
+      }
+    });
+
+    if (error) {
+      console.error('Error calling account-approval function:', error);
+      return { success: false, error: "Failed to approve account" };
+    }
+
+    // Revalidate the users page to reflect the changes
+    revalidatePath('/dashboard/users');
+    
+    return { success: true, message: "Account approved successfully" };
+  } catch (error) {
+    console.error('Error in approveAccountViaEdgeFunction:', error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+};
+
+/**
+ * Reject a user account using the Supabase Edge Function
+ */
+export const rejectAccountViaEdgeFunction = async (userId: string) => {
+  const supabase = await createClient();
+
+  // Get current user to verify they're an Admin or Manager
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "You must be logged in" };
+  }
+
+  // Verify current user is an Admin or Manager
+  const { data: currentUserProfile } = await supabase
+    .from('profiles')
+    .select('role, org_id, full_name')
+    .eq('id', user.id)
+    .single();
+
+  if (!currentUserProfile || (currentUserProfile.role !== 'Admin' && currentUserProfile.role !== 'Manager')) {
+    return { success: false, error: "Only Admins and Managers can reject accounts" };
+  }
+
+  try {
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('account-approval', {
+      body: {
+        action: 'reject',
+        userId
+      }
+    });
+
+    if (error) {
+      console.error('Error calling account-approval function:', error);
+      return { success: false, error: "Failed to reject account" };
+    }
+
+    // Revalidate the users page to reflect the changes
+    revalidatePath('/dashboard/users');
+    
+    return { success: true, message: "Account rejected successfully" };
+  } catch (error) {
+    console.error('Error in rejectAccountViaEdgeFunction:', error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+};
+
+/**
+ * Process account approval action via Edge Function
+ * This is a wrapper for the form action to handle both approve and reject
+ */
+export const processAccountApprovalViaEdgeFunction = async (formData: FormData) => {
+  // Extract form data
+  const userId = formData.get("userId")?.toString();
+  const action = formData.get("action")?.toString();
+
+  if (!userId || !action || (action !== 'approve' && action !== 'reject')) {
+    return encodedRedirect("error", "/dashboard/users", "Invalid request");
+  }
+
+  try {
+    let result;
+    
+    if (action === 'approve') {
+      result = await approveAccountViaEdgeFunction(userId);
+    } else {
+      result = await rejectAccountViaEdgeFunction(userId);
+    }
+
+    if (!result.success) {
+      return encodedRedirect("error", "/dashboard/users", result.error || "Failed to process request");
+    }
+
+    return encodedRedirect("success", "/dashboard/users", `User ${action}d successfully`);
+  } catch (error: any) {
+    console.error(`Error processing account ${action}:`, error);
+    return encodedRedirect("error", "/dashboard/users", "An unexpected error occurred");
+  }
 };
 
 /**

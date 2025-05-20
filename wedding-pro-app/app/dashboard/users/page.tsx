@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserProfile, isAdminOrManager } from "@/utils/supabase/auth-helpers";
-import { getOrganizationUsers } from "@/app/user-management-actions";
+import { getOrganizationUsers, processAccountApprovalViaEdgeFunction } from "@/app/user-management-actions";
 import { redirect } from "next/navigation";
 import { updateUserApprovalStatus } from "@/app/user-management-actions";
 
@@ -91,7 +91,7 @@ export default async function UsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <form action={updateUserApprovalStatus}>
+                          <form action={processAccountApprovalViaEdgeFunction}>
                             <input type="hidden" name="userId" value={pendingUser.id} />
                             <input type="hidden" name="action" value="approve" />
                             <button
@@ -101,7 +101,7 @@ export default async function UsersPage() {
                               Approve
                             </button>
                           </form>
-                          <form action={updateUserApprovalStatus}>
+                          <form action={processAccountApprovalViaEdgeFunction}>
                             <input type="hidden" name="userId" value={pendingUser.id} />
                             <input type="hidden" name="action" value="reject" />
                             <button

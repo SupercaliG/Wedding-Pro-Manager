@@ -4,6 +4,7 @@ import { getOrganizationUsers } from "@/app/user-management-actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FEATURES } from "@/utils/feature-flags";
+import { CSVExport } from "@/components/admin/csv-export";
 
 export default async function AdminDashboard() {
   const supabase = await createClient();
@@ -153,6 +154,9 @@ export default async function AdminDashboard() {
             </p>
           </div>
         </div>
+        
+        {/* CSV Export Section */}
+        <CSVExport />
       </div>
     </div>
   );
