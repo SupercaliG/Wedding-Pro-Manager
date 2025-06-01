@@ -2,14 +2,7 @@ import FetchDataSteps from "@/components/tutorial/fetch-data-steps";
 import { createClient } from "@/utils/supabase/server";
 import { InfoIcon } from "lucide-react";
 import { redirect } from "next/navigation";
-import dynamic from "next/dynamic";
-import { AnnouncementProvider } from "@/contexts/announcement-context";
-
-// Dynamically import the client component with no SSR
-const PostLoginAnnouncementHandler = dynamic(
-  () => import("@/components/post-login-announcement-handler"),
-  { ssr: false }
-);
+import PostLoginAnnouncementHandler from "@/components/post-login-announcement-handler";
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -24,10 +17,6 @@ export default async function ProtectedPage() {
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
-      {/* This component checks for announcements and redirects to dashboard */}
-      <AnnouncementProvider>
-        <PostLoginAnnouncementHandler />
-      </AnnouncementProvider>
       <div className="w-full">
         <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
           <InfoIcon size="16" strokeWidth={2} />
@@ -45,6 +34,7 @@ export default async function ProtectedPage() {
         <h2 className="font-bold text-2xl mb-4">Next steps</h2>
         <FetchDataSteps />
       </div>
+      <PostLoginAnnouncementHandler />
     </div>
   );
 }

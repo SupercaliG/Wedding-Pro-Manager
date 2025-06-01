@@ -5,8 +5,8 @@ import { formatInterval } from "@/utils/format-helpers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-export default async function JobDetailPage({ params }: { params: { jobId: string } }) {
-  const jobId = params.jobId;
+export default async function JobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
+  const { jobId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -69,9 +69,7 @@ export default async function JobDetailPage({ params }: { params: { jobId: strin
               <div>
                 <h2 className="text-xl font-semibold mb-2">Job Details</h2>
                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  job.status === 'upcoming' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : job.status === 'available'
+                  job.status === 'available'
                     ? 'bg-green-100 text-green-800'
                     : job.status === 'completed'
                     ? 'bg-gray-100 text-gray-800'
@@ -90,7 +88,7 @@ export default async function JobDetailPage({ params }: { params: { jobId: strin
                   Edit Job
                 </Link>
                 {/* Show Mark as Complete button for jobs with appropriate status */}
-                {(job.status === 'available' || job.status === 'upcoming' || job.status === 'in_progress') && (
+                {(job.status === 'available' || job.status === 'pending' || job.status === 'assigned') && (
                   <form action={async () => {
                     'use server';
                     const result = await markJobAsComplete(jobId);
@@ -189,13 +187,13 @@ export default async function JobDetailPage({ params }: { params: { jobId: strin
                           <div>
                             <span className="block text-xs text-gray-500">Time to Fill</span>
                             <span className="font-medium">
-                              {formatInterval(job.time_to_fill_duration)}
+                              {formatInterval(job.time_to_fill_duration ?? null)}
                             </span>
                           </div>
                           <div>
                             <span className="block text-xs text-gray-500">Assignment to Completion</span>
                             <span className="font-medium">
-                              {formatInterval(job.assignment_to_completion_duration)}
+                              {formatInterval(job.assignment_to_completion_duration ?? null)}
                             </span>
                           </div>
                         </div>

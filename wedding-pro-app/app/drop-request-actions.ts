@@ -1,10 +1,18 @@
 "use server";
 
-// Re-export everything from the new location to maintain backward compatibility
-export * from "./actions/drop-requests";
+import {
+  approveDropRequest,
+  rejectDropRequest,
+  createDropRequest,
+  getDropRequestsForEmployee,
+  getDropRequestsForManager,
+  getDropRequestsForAdmin
+} from "./actions/drop-requests";
 
-// Add a deprecation warning comment for developers
 /**
  * @deprecated This file is deprecated and will be removed in a future version.
  * Please import from "./actions/drop-requests" instead.
  */
+
+// Re-export all drop request actions for compatibility with legacy imports
+export { approveDropRequest, rejectDropRequest, createDropRequest, getDropRequestsForEmployee, getDropRequestsForManager, getDropRequestsForAdmin };

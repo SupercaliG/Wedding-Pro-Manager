@@ -5,8 +5,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 
-export default async function EditJobPage({ params }: { params: { jobId: string } }) {
-  const jobId = params.jobId;
+export default async function EditJobPage({ params }: { params: Promise<{ jobId: string }> }) {
+  const { jobId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   

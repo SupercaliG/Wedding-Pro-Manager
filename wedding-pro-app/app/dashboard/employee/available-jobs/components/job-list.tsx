@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { JobWithVenue } from "@/app/job-actions";
+import type { JobWithVenue } from "@/app/actions/jobs/types";
 import { JobCard } from "./job-card";
 import { RoutePreviewModal } from "./route-preview-modal";
 import { getUserJobInterests } from "@/app/job-interest-actions";

@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserProfile, isManager } from "@/utils/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
-import { hasTimeConflict } from "./job-actions";
+import { hasTimeConflict } from "../utils/timeUtils";
 import {
   getEmployeeAddress,
   calculateDistance,
@@ -165,7 +165,7 @@ export async function getInterestedEmployeesForJob(
         // Calculate distance if venue and employee addresses are available
         let distance = null;
         if (job.venue && employee.profile) {
-          const employeeAddress = await getEmployeeAddress(employee.profile.id, profile.org_id);
+          const employeeAddress = await getEmployeeAddress(employee.profile.id, profile.org_id!);
           if (employeeAddress && job.venue) {
             const venue = job.venue as any; // Cast to any to avoid TypeScript errors
             const venueAddress = `${venue.address}, ${venue.city}, ${venue.state} ${venue.zip}`;
@@ -317,14 +317,13 @@ export async function assignJobToEmployee(
       };
     });
     
-    // Check for time conflicts - cast job to JobWithVenue to satisfy TypeScript
-    if (hasTimeConflict({
-      ...job,
-      title: '', // Add required JobData properties
-      description: '',
-      status: 'available',
-      travel_pay_offered: false
-    }, formattedAssignments)) {
+    // Check for time conflicts with all assignments
+    const jobStart = job.start_time;
+    const jobEnd = job.end_time;
+    const conflict = formattedAssignments.some(a =>
+      hasTimeConflict(jobStart, jobEnd, a.start_time, a.end_time)
+    );
+    if (conflict) {
       return { success: false, error: "Employee has a time conflict with this job" };
     }
     

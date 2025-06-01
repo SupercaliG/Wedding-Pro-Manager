@@ -87,11 +87,29 @@ export async function getLastAssignmentDate(employeeId: string): Promise<string 
     .order('job.end_time', { ascending: false })
     .limit(1);
   
-  if (error || !data || data.length === 0 || !data[0].job) {
+  // data is the result of the query, data[0] is the first job_assignment record.
+  // data[0].job is the related job record(s). TypeScript infers this as an array.
+  if (
+    error ||
+    !data ||
+    data.length === 0 ||
+    !data[0].job || // Handles if the job relation itself is null/undefined
+    !Array.isArray(data[0].job) || // Ensures data[0].job is an array
+    data[0].job.length === 0 // Handles if the job array is empty
+  ) {
+    return null;
+  }
+
+  // At this point, data[0].job is a non-empty array of job objects.
+  // We expect it to be a to-one relationship, so we take the first element.
+  const jobObject = data[0].job[0] as { id: any; end_time: string | null; status: any };
+  
+  // Additional safety check in case the first element of the array is null/undefined
+  if (!jobObject) {
     return null;
   }
   
-  return data[0].job.end_time;
+  return jobObject.end_time;
 }
 
 /**

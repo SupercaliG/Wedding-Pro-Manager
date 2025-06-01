@@ -3,15 +3,15 @@
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
-import { JobWithVenue } from "@/app/job-actions";
+import { AvailableJob } from "@/app/actions/jobs";
 import { expressInterest, withdrawInterest } from "@/app/job-interest-actions";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface JobCardProps {
-  job: JobWithVenue;
+  job: AvailableJob;
   hasConflict: boolean;
-  openRoutePreview: (job: JobWithVenue) => void;
+  openRoutePreview: (job: AvailableJob) => void;
   userInterests: string[];
   onInterestChange?: () => void;
 }

@@ -12,8 +12,32 @@ import { getCurrentUserProfile } from "@/utils/supabase/auth-helpers";
  * Create a new organization with the first user as Admin
  */
 export const createOrganizationWithAdmin = async (formData: FormData) => {
-  const supabase = await createClient();
-  const origin = (await headers()).get("origin");
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Failed to initialize application. Please try again later."
+    );
+  }
+
+  let origin;
+  try {
+    origin = (await headers()).get("origin");
+    if (!origin) {
+      throw new Error("Origin header not found");
+    }
+  } catch (error) {
+    console.error("Failed to get origin header:", error);
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Failed to process request. Please try again."
+    );
+  }
 
   // Extract form data
   const email = formData.get("email")?.toString();
@@ -88,7 +112,18 @@ export const createOrganizationWithAdmin = async (formData: FormData) => {
     );
   } catch (error) {
     console.error("Transaction error:", error);
-    return encodedRedirect("error", "/sign-up", "An unexpected error occurred");
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    
+    // Check for specific error types
+    if (errorMessage.includes("duplicate key") || errorMessage.includes("already exists")) {
+      return encodedRedirect("error", "/sign-up", "An account with this email already exists");
+    }
+    
+    if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+      return encodedRedirect("error", "/sign-up", "Network error. Please check your connection and try again");
+    }
+    
+    return encodedRedirect("error", "/sign-up", "Failed to create organization. Please try again later");
   }
 };
 

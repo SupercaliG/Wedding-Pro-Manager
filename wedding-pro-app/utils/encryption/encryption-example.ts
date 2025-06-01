@@ -218,7 +218,7 @@ export async function receiveEncryptedGroupMessage(
     // Get the message from the database
     const { data: message, error: messageError } = await supabase
       .from('messages')
-      .select('encrypted_content, group_chat_id')
+      .select('encrypted_content, group_chat_id, sender_id')
       .eq('id', messageId)
       .single();
 
@@ -227,7 +227,8 @@ export async function receiveEncryptedGroupMessage(
     // Decrypt the message
     const decryptedMessage = await encryption.decryptGroupMessage(
       message.group_chat_id,
-      message.encrypted_content
+      message.encrypted_content,
+      message.sender_id
     );
 
     return decryptedMessage;

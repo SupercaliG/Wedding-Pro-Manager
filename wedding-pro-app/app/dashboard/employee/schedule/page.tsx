@@ -138,7 +138,50 @@ export default async function EmployeeSchedulePage() {
       
       <EmployeeScheduleClient
         scheduledJobs={scheduledJobs}
-        jobAssignments={jobAssignments || []}
+        jobAssignments={jobAssignments?.map(rawAssignment => {
+          // Ensure 'job' is a single object or undefined
+          // Supabase might return job as RawJob[] or RawJob, ensure it's treated as potentially an array first
+          const jobDataArray = Array.isArray(rawAssignment.job)
+            ? rawAssignment.job
+            : (rawAssignment.job ? [rawAssignment.job] : []); // Handle if rawAssignment.job is null/undefined
+          const singleRawJob = jobDataArray[0] || undefined;
+
+          // Ensure 'venue' within 'job' is a single object or undefined
+          let processedJobWithSingleVenue;
+          if (singleRawJob) {
+            // Supabase might return venue as RawVenue[] or RawVenue
+            const venueDataArray = Array.isArray(singleRawJob.venue)
+              ? singleRawJob.venue
+              : (singleRawJob.venue ? [singleRawJob.venue] : []);  // Handle if singleRawJob.venue is null/undefined
+            const singleRawVenue = venueDataArray[0] || undefined;
+            
+            processedJobWithSingleVenue = {
+              ...singleRawJob,
+              venue: singleRawVenue,
+            };
+          } else {
+            processedJobWithSingleVenue = undefined;
+          }
+
+          // Ensure 'job_required_role' is a single object or undefined
+          const roleDataArray = Array.isArray(rawAssignment.job_required_role)
+            ? rawAssignment.job_required_role
+            : (rawAssignment.job_required_role ? [rawAssignment.job_required_role] : []); // Handle if rawAssignment.job_required_role is null/undefined
+          const singleRawRole = roleDataArray[0] || undefined;
+
+          return {
+            // Spread top-level properties from rawAssignment that are part of JobAssignment interface
+            id: rawAssignment.id,
+            job_id: rawAssignment.job_id,
+            job_required_role_id: rawAssignment.job_required_role_id,
+            // Add any other direct properties from job_assignments table if they are part of JobAssignment type
+            // e.g. status: rawAssignment.status, if 'status' is a column on 'job_assignments'
+
+            // Assign the processed nested objects
+            job: processedJobWithSingleVenue,
+            job_required_role: singleRawRole,
+          };
+        }) || []}
         dropRequests={dropRequests || []}
       />
       

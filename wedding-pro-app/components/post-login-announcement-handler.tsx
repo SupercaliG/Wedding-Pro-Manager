@@ -22,7 +22,7 @@ export default function PostLoginAnnouncementHandler() {
         
         // If there are unseen announcements, set the flag in sessionStorage
         // This will be used by the dashboard to know it should show the modal
-        if (hasUnseenAnnouncements && announcements.length > 0) {
+        if (hasUnseenAnnouncements) {
           sessionStorage.setItem('hasUnseenAnnouncements', 'true')
         }
       } catch (error) {
@@ -34,7 +34,7 @@ export default function PostLoginAnnouncementHandler() {
     }
 
     checkAnnouncementsAndRedirect()
-  }, [router, refreshAnnouncements, hasUnseenAnnouncements, announcements])
+  }, [router, refreshAnnouncements])
 
   // This component doesn't render anything visible
   return null

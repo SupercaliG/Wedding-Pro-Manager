@@ -5,9 +5,10 @@ import {
   deleteAnnouncement,
   getOrganizationAnnouncements,
   trackAnnouncementEngagement,
-  hasUserSeenAnnouncement,
-  getRecentEngagements
+  hasUserSeenAnnouncement
+  // getRecentEngagements will be imported via namespace for spying if needed
 } from './announcement-actions'
+import * as announcementActions from './announcement-actions' // Import all for spying
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -19,6 +20,9 @@ vi.mock('@/utils/supabase/server', () => ({
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn()
 }))
+
+// No longer using vi.mock for './announcement-actions' itself.
+// We will use vi.spyOn for specific functions like getRecentEngagements when testing other functions.
 
 describe('Announcement Actions', () => {
   // Mock Supabase client and responses
@@ -442,21 +446,18 @@ describe('Announcement Actions', () => {
         },
         error: null
       })
-
-      // Mock getRecentEngagements to return empty array (no duplicates)
-      vi.mock('./announcement-actions', async () => {
-        const actual = await vi.importActual('./announcement-actions')
-        return {
-          ...actual,
-          getRecentEngagements: vi.fn().mockResolvedValue([])
-        }
-      })
-
+      
+      // Spy on and mock getRecentEngagements for this specific test case
+      const getRecentEngagementsSpy = vi.spyOn(announcementActions, 'getRecentEngagements')
+        .mockResolvedValueOnce([]); // For initial check, no recent views
+  
       // Call the function
-      const result = await trackAnnouncementEngagement({
+      const result = await announcementActions.trackAnnouncementEngagement({
         announcementId: 'announcement-123',
         engagementType: 'view'
       })
+      
+      expect(getRecentEngagementsSpy).toHaveBeenCalled();
 
       // Assertions
       expect(createClient).toHaveBeenCalled()
@@ -498,13 +499,8 @@ describe('Announcement Actions', () => {
       })
 
       // Mock getRecentEngagements to return empty array (no duplicates)
-      vi.mock('./announcement-actions', async () => {
-        const actual = await vi.importActual('./announcement-actions')
-        return {
-          ...actual,
-          getRecentEngagements: vi.fn().mockResolvedValue([])
-        }
-      })
+      // Configure the shared mock for this test
+      mockGetRecentEngagements.mockResolvedValue([])
 
       // Call the function
       const result = await trackAnnouncementEngagement({
@@ -544,14 +540,8 @@ describe('Announcement Actions', () => {
       }
 
       // Mock getRecentEngagements to return a recent engagement
-      const getRecentEngagementsMock = vi.fn().mockResolvedValue([recentEngagement])
-      vi.mock('./announcement-actions', async () => {
-        const actual = await vi.importActual('./announcement-actions')
-        return {
-          ...actual,
-          getRecentEngagements: getRecentEngagementsMock
-        }
-      })
+      // Configure the shared mock for this test
+      mockGetRecentEngagements.mockResolvedValue([recentEngagement])
 
       // Call the function
       const result = await trackAnnouncementEngagement({
@@ -561,7 +551,7 @@ describe('Announcement Actions', () => {
       })
 
       // Assertions
-      expect(getRecentEngagementsMock).toHaveBeenCalledWith({
+      expect(mockGetRecentEngagements).toHaveBeenCalledWith({
         announcementId: 'announcement-123',
         engagementType: 'view',
         timeWindowSeconds: expect.any(Number)
@@ -626,7 +616,11 @@ describe('Announcement Actions', () => {
       })
 
       // Call the function and expect it to throw
-      await expect(hasUserSeenAnnouncement('announcement-123')).rejects.toThrow('Unauthorized')
+      await expect(announcementActions.hasUserSeenAnnouncement('announcement-123')).rejects.toThrow('Unauthorized')
     })
   })
+  
+  // Tests for getRecentEngagements itself (if any were planned) would go here,
+  // and they would test the *actual* implementation, not the spy.
+  // For now, assuming it's primarily a dependency.
 })

@@ -113,7 +113,7 @@ export default async function JobManagementPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{job.title}</div>
                       <div className="text-xs text-gray-500 truncate max-w-xs">
-                        {job.description?.substring(0, 50)}{job.description?.length > 50 ? '...' : ''}
+                        {job.description?.substring(0, 50)}{job.description && job.description.length > 50 ? '...' : ''}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -39,28 +39,43 @@ const TestComponent = () => {
 }
 
 describe('AnnouncementContext', () => {
-  // Mock window.openAnnouncementModal
-  const mockOpenModal = vi.fn()
+  const mockOpenModal = vi.fn();
+  const mockSessionStorageStore: { [key: string]: string | null } = {};
+
+  const mockSessionStorage = {
+    getItem: vi.fn((key: string) => mockSessionStorageStore[key] || null),
+    setItem: vi.fn((key: string, value: string) => { mockSessionStorageStore[key] = value; }),
+    removeItem: vi.fn((key: string) => { delete mockSessionStorageStore[key]; }),
+    clear: vi.fn(() => {
+      for (const key in mockSessionStorageStore) {
+        delete mockSessionStorageStore[key];
+      }
+    })
+  };
   
   beforeEach(() => {
-    vi.resetAllMocks()
-    
-    // Mock window.openAnnouncementModal
+    vi.resetAllMocks(); // This primarily resets mocks created with vi.mock (like announcementActions)
+    mockOpenModal.mockClear();
+
+    // Reset our custom sessionStorage mock's spies and clear its internal store
+    mockSessionStorage.getItem.mockClear();
+    mockSessionStorage.setItem.mockClear();
+    mockSessionStorage.removeItem.mockClear();
+    mockSessionStorage.clear.mockClear(); // Clears call history of the clear method itself
+    mockSessionStorage.clear(); // Actually clears the store
+
     Object.defineProperty(window, 'openAnnouncementModal', {
       value: mockOpenModal,
-      writable: true
-    })
+      writable: true,
+      configurable: true
+    });
     
-    // Mock sessionStorage
     Object.defineProperty(window, 'sessionStorage', {
-      value: {
-        getItem: vi.fn(),
-        setItem: vi.fn(),
-        removeItem: vi.fn()
-      },
-      writable: true
-    })
-  })
+      value: mockSessionStorage,
+      writable: true,
+      configurable: true
+    });
+  });
 
   it('provides default values when no announcements are available', async () => {
     // Mock empty announcements
@@ -292,8 +307,8 @@ describe('AnnouncementContext', () => {
     // Mock announcements
     vi.mocked(announcementActions.getOrganizationAnnouncements).mockResolvedValue([])
     
-    // Mock sessionStorage to have the flag
-    vi.mocked(window.sessionStorage.getItem).mockReturnValue('true')
+    // Mock sessionStorage to have the flag by setting it in our mock store
+    mockSessionStorage.setItem('hasUnseenAnnouncements', 'true');
     
     // Render the test component with the provider
     render(
@@ -309,10 +324,10 @@ describe('AnnouncementContext', () => {
     })
 
     // Verify sessionStorage was checked
-    expect(window.sessionStorage.getItem).toHaveBeenCalledWith('hasUnseenAnnouncements')
+    expect(mockSessionStorage.getItem).toHaveBeenCalledWith('hasUnseenAnnouncements');
     
     // Verify sessionStorage flag was removed
-    expect(window.sessionStorage.removeItem).toHaveBeenCalledWith('hasUnseenAnnouncements')
+    expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('hasUnseenAnnouncements');
   })
 
   it('automatically opens modal when there are unseen announcements', async () => {
@@ -332,7 +347,7 @@ describe('AnnouncementContext', () => {
     vi.mocked(announcementActions.hasUserSeenAnnouncement).mockResolvedValue(false)
     
     // Mock sessionStorage to have the flag
-    vi.mocked(window.sessionStorage.getItem).mockReturnValue('true')
+    mockSessionStorage.setItem('hasUnseenAnnouncements', 'true');
 
     // Render the test component with the provider
     render(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin, getCurrentUserProfile } from '@/utils/supabase/auth-helpers';
-import { getHoneyBookToken, getHoneyBookWebhooks } from '@/utils/honeybook/api-helpers';
+import { getHoneyBookToken, getHoneyBookWebhooks, HoneyBookWebhook } from '@/utils/honeybook/api-helpers';
 
 /**
  * Returns the current HoneyBook connection status for the organization
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Get the HoneyBook token and webhooks
     const token = await getHoneyBookToken();
-    let webhooks = [];
+    let webhooks: HoneyBookWebhook[] = [];
     
     // Only fetch webhooks if we have an active token
     if (token && token.is_active) {

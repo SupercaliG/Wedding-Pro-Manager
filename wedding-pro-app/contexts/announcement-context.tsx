@@ -109,12 +109,6 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Automatically open the modal if there are unseen announcements
-  useEffect(() => {
-    if (hasUnseenAnnouncements && announcements.length > 0) {
-      openAnnouncementModal()
-    }
-  }, [hasUnseenAnnouncements, announcements])
 
   return (
     <AnnouncementContext.Provider

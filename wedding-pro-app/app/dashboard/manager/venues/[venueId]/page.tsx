@@ -6,15 +6,15 @@ import { VenueDetailClient } from './venue-detail-client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftIcon, PencilIcon, TrashIcon } from 'lucide-react';
 
-interface VenueDetailPageProps {
-  params: {
-    venueId: string;
-  };
-}
+import type { Metadata, ResolvingMetadata } from 'next';
 
-export async function generateMetadata({ params }: VenueDetailPageProps) {
-  const { data: venue, error } = await getVenueById(params.venueId);
-  
+export async function generateMetadata(
+  { params }: { params: Promise<{ venueId: string }> },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { venueId } = await params;
+  const { data: venue, error } = await getVenueById(venueId);
+
   if (error || !venue) {
     return {
       title: 'Venue Not Found - Wedding Pro',
@@ -28,8 +28,9 @@ export async function generateMetadata({ params }: VenueDetailPageProps) {
   };
 }
 
-export default async function VenueDetailPage({ params }: VenueDetailPageProps) {
-  const { data: venue, error } = await getVenueById(params.venueId);
+export default async function VenueDetailPage({ params }: { params: Promise<{ venueId: string }> }) {
+  const { venueId } = await params;
+  const { data: venue, error } = await getVenueById(venueId);
   
   if (error || !venue) {
     notFound();

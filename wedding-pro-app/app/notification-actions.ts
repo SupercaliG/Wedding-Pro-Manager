@@ -84,7 +84,7 @@ export async function sendSMSNotification(
       from: '',
       body: message,
       dateCreated: new Date(),
-      errorCode: result.error?.code,
+      errorCode: result.error?.code !== undefined ? String(result.error.code) : undefined,
       errorMessage: result.error?.message,
     };
   } catch (error: any) {
@@ -146,7 +146,7 @@ export async function sendSMSToPhoneNumber(
       from: '',
       body: message,
       dateCreated: new Date(),
-      errorCode: result.error?.code,
+      errorCode: result.error?.code !== undefined ? String(result.error.code) : undefined,
       errorMessage: result.error?.message,
     };
   } catch (error: any) {

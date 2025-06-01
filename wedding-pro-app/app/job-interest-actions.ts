@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserProfile } from "@/utils/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
-import { hasTimeConflict, JobWithVenue } from "./job-actions";
+import { hasTimeConflict } from "../utils/timeUtils";
 import { createNotificationService } from "@/utils/notifications/notification-service";
 
 /**
@@ -71,8 +71,13 @@ export async function expressInterest(jobId: string) {
     }));
     
     // Check for time conflicts
-    const jobWithVenue = job as JobWithVenue;
-    if (hasTimeConflict(jobWithVenue, formattedAssignments)) {
+    // Check for time conflicts with all assignments
+    const jobStart = job.start_time;
+    const jobEnd = job.end_time;
+    const conflict = formattedAssignments.some(a =>
+      hasTimeConflict(jobStart, jobEnd, a.start_time, a.end_time)
+    );
+    if (conflict) {
       return { success: false, message: "You have a time conflict with this job" };
     }
     

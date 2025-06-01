@@ -42,7 +42,7 @@ export default async function Signup(props: {
 
           {/* Organization Signup Form */}
           <TabsContent value="organization">
-            <form className="flex flex-col gap-4">
+            <form className="flex flex-col gap-4" action={createOrganizationWithAdmin}>
               <div>
                 <Label htmlFor="orgName">Organization Name</Label>
                 <Input 
@@ -95,8 +95,7 @@ export default async function Signup(props: {
                 />
               </div>
 
-              <SubmitButton 
-                formAction={createOrganizationWithAdmin} 
+              <SubmitButton
                 pendingText="Creating Organization..."
               >
                 Create Organization
@@ -107,7 +106,7 @@ export default async function Signup(props: {
 
           {/* Employee Signup Form */}
           <TabsContent value="employee">
-            <form className="flex flex-col gap-4">
+            <form className="flex flex-col gap-4" action={employeeSelfSignup}>
               <div>
                 <Label htmlFor="emp-fullName">Full Name</Label>
                 <Input 
@@ -160,8 +159,7 @@ export default async function Signup(props: {
                 />
               </div>
 
-              <SubmitButton 
-                formAction={employeeSelfSignup} 
+              <SubmitButton
                 pendingText="Signing up..."
               >
                 Sign up

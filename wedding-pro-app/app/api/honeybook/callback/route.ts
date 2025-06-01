@@ -35,7 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get the stored state from the cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const storedState = cookieStore.get('honeybook_oauth_state');
     const orgId = cookieStore.get('honeybook_oauth_org_id');
     

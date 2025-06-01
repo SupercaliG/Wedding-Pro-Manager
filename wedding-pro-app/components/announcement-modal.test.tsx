@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AnnouncementModal from './announcement-modal'
 import { AnnouncementProvider } from '@/contexts/announcement-context'
+import * as announcementContext from '@/contexts/announcement-context'
 import * as announcementActions from '@/app/announcement-actions'
 
 // Mock the announcement actions
@@ -18,18 +19,19 @@ vi.mock('@/contexts/announcement-context', () => ({
 }))
 
 describe('AnnouncementModal', () => {
-  // Mock window.openAnnouncementModal
-  const originalWindow = { ...window }
+  // const originalWindow = { ...window } // Avoid capturing window too early if we were to restore it.
+                                        // Global mocks from test/setup.ts should persist.
   
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.resetAllMocks(); // This resets mocks from vi.mock, vi.spyOn, etc.
     
-    // Restore window to original state
-    Object.defineProperty(global, 'window', {
-      value: { ...originalWindow },
-      writable: true
-    })
-  })
+    // The component itself manages window.openAnnouncementModal.
+    // We don't need to aggressively redefine global.window here,
+    // as it might wipe out mocks from test/setup.ts (like getComputedStyle).
+    // If specific window properties needed mocking *only* for this suite and
+    // clashed with global mocks, a more targeted approach would be needed.
+    // For now, relying on test/setup.ts for global window properties.
+  });
 
   const mockAnnouncements = [
     {
@@ -74,7 +76,7 @@ describe('AnnouncementModal', () => {
 
   it('renders correctly with announcement data', async () => {
     // Setup mock context
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: mockAnnouncements
@@ -84,7 +86,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Check that the modal renders with correct data
     await waitFor(() => {
@@ -96,7 +100,7 @@ describe('AnnouncementModal', () => {
 
   it('displays pinned badge for pinned announcements', async () => {
     // Setup mock context with pinned announcement
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: [mockPinnedAnnouncement]
@@ -106,7 +110,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Check that the pinned badge is displayed
     await waitFor(() => {
@@ -116,7 +122,7 @@ describe('AnnouncementModal', () => {
 
   it('tracks view engagement when modal opens', async () => {
     // Setup mock context
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: mockAnnouncements
@@ -126,7 +132,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Check that view tracking was called
     await waitFor(() => {
@@ -142,7 +150,7 @@ describe('AnnouncementModal', () => {
 
   it('tracks dismiss engagement when modal closes', async () => {
     // Setup mock context
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: mockAnnouncements
@@ -152,7 +160,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Find and click the close button
     const user = userEvent.setup()
@@ -180,7 +190,7 @@ describe('AnnouncementModal', () => {
       content: 'Check out https://example.com for more information'
     }
 
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: [announcementWithLink]
@@ -190,7 +200,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Find and click the link
     const user = userEvent.setup()
@@ -214,7 +226,7 @@ describe('AnnouncementModal', () => {
 
   it('allows navigation between multiple announcements', async () => {
     // Setup mock context with multiple announcements
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: mockMultipleAnnouncements
@@ -224,7 +236,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Check that the first announcement is displayed
     await waitFor(() => {
@@ -255,7 +269,7 @@ describe('AnnouncementModal', () => {
 
   it('refreshes announcements after closing the modal', async () => {
     // Setup mock context
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     const refreshAnnouncementsMock = vi.fn().mockResolvedValue(undefined)
     
     useAnnouncementsMock.mockReturnValue({
@@ -267,7 +281,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Find and click the close button
     const user = userEvent.setup()
@@ -282,7 +298,7 @@ describe('AnnouncementModal', () => {
 
   it('handles accessibility attributes correctly', async () => {
     // Setup mock context
-    const useAnnouncementsMock = vi.spyOn(require('@/contexts/announcement-context'), 'useAnnouncements')
+    const useAnnouncementsMock = vi.spyOn(announcementContext, 'useAnnouncements')
     useAnnouncementsMock.mockReturnValue({
       ...mockAnnouncementContext,
       announcements: mockAnnouncements
@@ -292,7 +308,9 @@ describe('AnnouncementModal', () => {
     render(<AnnouncementModal />)
 
     // Open the modal programmatically
-    window.openAnnouncementModal?.()
+    await act(async () => {
+      window.openAnnouncementModal?.()
+    })
 
     // Check that the dialog has the correct role and attributes
     await waitFor(() => {

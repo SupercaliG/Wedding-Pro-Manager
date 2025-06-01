@@ -1,21 +1,37 @@
 import { createClient } from "@/utils/supabase/server";
 import { isManager } from "@/utils/supabase/auth-helpers";
 import { getJobById } from "@/app/job-actions";
-import { getInterestedEmployeesForJob, SortOption } from "@/app/job-assignment-actions";
+import { getInterestedEmployeesForJob } from "@/app/job-assignment-actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import InterestedEmployeesList from "../components/interested-employees-list";
 import JobRoleAssignment from "../components/job-role-assignment";
 
-export default async function JobAssignmentPage({ 
-  params, 
-  searchParams 
-}: { 
-  params: { jobId: string },
-  searchParams: { sort?: SortOption }
+import type { SortOption } from "@/app/job-assignment-actions";
+
+export default async function JobAssignmentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ jobId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const jobId = params.jobId;
-  const sortOption = searchParams.sort || 'lastAssignmentDate_asc';
+  const { jobId } = await params;
+  const sParams = searchParams ? await searchParams : undefined;
+  // Validate sortOption to ensure it's a valid SortOption value
+  const validSortOptions: SortOption[] = [
+    'lastAssignmentDate_asc',
+    'lastAssignmentDate_desc',
+    'distance_asc',
+    'distance_desc',
+    'interestDate_asc',
+    'interestDate_desc',
+  ];
+  const sortOptionRaw = sParams?.sort;
+  const sortOption: SortOption =
+    validSortOptions.includes(sortOptionRaw as SortOption)
+      ? (sortOptionRaw as SortOption)
+      : 'lastAssignmentDate_asc';
   
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,7 +54,7 @@ export default async function JobAssignmentPage({
   }
   
   // Get interested employees with sorting
-  const { data: interestedEmployees, roleCapacity, error: employeesError } = 
+  const { data: interestedEmployees, roleCapacity, error: employeesError } =
     await getInterestedEmployeesForJob(jobId, sortOption);
   
   if (employeesError) {
@@ -95,9 +111,7 @@ export default async function JobAssignmentPage({
           <div>
             <p className="text-sm font-medium text-gray-500">Status</p>
             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-              job.status === 'upcoming' 
-                ? 'bg-blue-100 text-blue-800' 
-                : job.status === 'available'
+              job.status === 'available'
                 ? 'bg-green-100 text-green-800'
                 : job.status === 'completed'
                 ? 'bg-gray-100 text-gray-800'

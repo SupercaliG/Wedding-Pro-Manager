@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { JobWithVenue } from "@/app/job-actions";
+import type { JobWithVenue, AvailableJob, JobRequiredRole } from "@/app/actions/jobs/types";
 import { JobFilters, JobFilters as JobFiltersType } from "./job-filters";
 import { JobList } from "./job-list";
 
 interface JobListingClientProps {
-  initialJobs: JobWithVenue[];
+  initialJobs: AvailableJob[];
   employeeAssignments: Array<{
     id: string;
     job_id: string;
@@ -25,7 +25,7 @@ export function JobListingClient({
   employeeAddress,
   orgAddress
 }: JobListingClientProps) {
-  const [jobs, setJobs] = useState<JobWithVenue[]>(initialJobs);
+  const [jobs, setJobs] = useState<AvailableJob[]>(initialJobs);
   const [filters, setFilters] = useState<JobFiltersType>({
     role: "",
     distance: "",
@@ -69,8 +69,8 @@ export function JobListingClient({
       
       // Apply role filter
       if (filters.role) {
-        filtered = filtered.filter(job => 
-          job.job_required_roles?.some(role => role.role_name === filters.role)
+        filtered = filtered.filter(job =>
+          job.job_required_roles?.some((role: JobRequiredRole) => role.role_name === filters.role)
         );
       }
       

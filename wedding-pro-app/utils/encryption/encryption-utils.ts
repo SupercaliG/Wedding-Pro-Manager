@@ -125,11 +125,12 @@ export class EncryptionUtils {
    * Decrypt a message from a group chat
    * @param groupId The group's unique identifier
    * @param encryptedMessage The encrypted message
+   * @param senderId The ID of the user who sent the message
    * @returns Decrypted plaintext message
    */
-  public async decryptGroupMessage(groupId: string, encryptedMessage: string): Promise<string> {
+  public async decryptGroupMessage(groupId: string, encryptedMessage: string, senderId: string): Promise<string> {
     this.checkInitialized();
-    return await this.encryptionService!.decryptGroupMessage(groupId, encryptedMessage);
+    return await this.encryptionService!.decryptGroupMessage(groupId, encryptedMessage, senderId);
   }
 
   /**

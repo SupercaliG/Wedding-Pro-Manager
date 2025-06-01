@@ -13,23 +13,30 @@ const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000";
 
+console.log("[Layout] defaultUrl:", defaultUrl);
+
 export const metadata = {
   metadataBase: new URL(defaultUrl),
+  icons: {
+    icon: 'http://localhost:3000/favicon.ico',
+  },
   title: "Wedding Pro - Professional Wedding Planning",
   description: "Professional wedding planning and management application",
   manifest: "/manifest.json",
-  themeColor: "#000000",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Wedding Pro",
+    // Note: Ensure there's a comma above if this was the last property before appleWebApp
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+};
+
+export const viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const geistSans = Geist({
@@ -45,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>
       <head>
-        <script src="/sw-register.js" defer />
+        {/* <script src="/sw-register.js" defer /> */}
       </head>
       <body className="bg-background text-foreground">
         <ThemeProvider

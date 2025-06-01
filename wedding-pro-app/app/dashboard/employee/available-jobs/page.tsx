@@ -4,11 +4,18 @@ import { redirect } from "next/navigation";
 import {
   getAvailableJobsForEmployee,
   getEmployeeAssignments,
-  JobWithVenue
 } from "@/app/job-actions";
+import type { JobWithVenue } from "app/actions/jobs/types";
 import { JobListingClient } from "./components/job-listing-client";
 
-export default async function AvailableJobsPage() {
+export default async function AvailableJobsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  // TODO: Use resolvedSearchParams if/when filtering is implemented server-side
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -83,8 +90,8 @@ export default async function AvailableJobsPage() {
           employeeAssignments={assignments ? assignments.map(assignment => ({
             id: assignment.id,
             job_id: assignment.job_id,
-            start_time: assignment.jobs?.start_time || '',
-            end_time: assignment.jobs?.end_time || ''
+            start_time: assignment.jobs?.[0]?.start_time || '',
+            end_time: assignment.jobs?.[0]?.end_time || ''
           })) : []}
           availableRoles={allRoles}
           employeeAddress={employeeAddress || undefined}

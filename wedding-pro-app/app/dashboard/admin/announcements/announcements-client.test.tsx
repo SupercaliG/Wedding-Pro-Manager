@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AnnouncementManagement from './announcements-client'
 import * as announcementActions from '@/app/announcement-actions'
@@ -12,8 +12,7 @@ vi.mock('@/app/announcement-actions', () => ({
   getOrganizationAnnouncements: vi.fn()
 }))
 
-// Mock window.confirm
-vi.spyOn(window, 'confirm').mockImplementation(() => true)
+// window.confirm is mocked globally in test/setup.ts
 
 describe('AnnouncementManagement', () => {
   const mockOrgId = 'org-123'
@@ -92,10 +91,15 @@ describe('AnnouncementManagement', () => {
     // Check that inactive badge is displayed
     expect(screen.getByText('Inactive')).toBeInTheDocument()
 
-    // Check that analytics are displayed
-    expect(screen.getByText('100 views')).toBeInTheDocument()
-    expect(screen.getByText('30 clicks')).toBeInTheDocument()
-    expect(screen.getByText('30% CTR')).toBeInTheDocument()
+    // Check that analytics are displayed for the first announcement
+    const firstAnnouncementCard = screen.getByText('Test Announcement').closest('div[class*="border rounded-lg"]');
+    expect(firstAnnouncementCard).not.toBeNull();
+    if (firstAnnouncementCard) { // Type guard
+      const cardElement = firstAnnouncementCard as HTMLElement; // Cast to HTMLElement
+      expect(within(cardElement).getByText('100 views')).toBeInTheDocument()
+      expect(within(cardElement).getByText('30 clicks')).toBeInTheDocument()
+      expect(within(cardElement).getByText('30% CTR')).toBeInTheDocument()
+    }
   })
 
   it('allows creating a new announcement', async () => {
@@ -150,8 +154,10 @@ describe('AnnouncementManagement', () => {
     })
 
     // New announcement should be added to the list
+    // New announcement should be added to the list, check for its heading
     await waitFor(() => {
-      expect(screen.getByText('New Announcement')).toBeInTheDocument()
+      // The button "New Announcement" will also be present, so be specific
+      expect(screen.getByRole('heading', { name: 'New Announcement', level: 3 })).toBeInTheDocument()
     })
   })
 
@@ -365,8 +371,9 @@ describe('AnnouncementManagement', () => {
     )
 
     // New pinned announcement should be added to the list
+    // New pinned announcement should be added to the list
     await waitFor(() => {
-      expect(screen.getByText('New Pinned Announcement')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'New Pinned Announcement', level: 3 })).toBeInTheDocument()
     })
   })
 

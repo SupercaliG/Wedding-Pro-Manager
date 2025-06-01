@@ -33,7 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const state = uuidv4();
     
     // Store the state and org_id in a cookie for verification during callback
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('honeybook_oauth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

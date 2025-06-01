@@ -5,42 +5,7 @@ import { getCurrentUserProfile, isManager } from "@/utils/supabase/auth-helpers"
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 
-/**
- * Job data type definition
- */
-export type JobData = {
-  id: string;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string;
-  venue_id: string;
-  status: 'available' | 'pending' | 'assigned' | 'completed' | 'cancelled';
-  travel_pay_offered: boolean;
-  travel_pay_amount: number | null;
-  created_by_user_id: string;
-  org_id: string;
-  created_at: string;
-  completed_at?: string | null;
-  first_assigned_at?: string | null;
-  time_to_fill_duration?: string | null;
-  assignment_to_completion_duration?: string | null;
-};
-
-/**
- * Job with venue data type definition
- */
-export type JobWithVenue = JobData & {
-  venue: {
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    state: string;
-    zip: string;
-  };
-};
-
+// Types JobData, JobWithVenue, JobRequiredRole, AvailableJob moved to ./types.ts
 /**
  * Check if the current user has manager permissions
  */
@@ -242,31 +207,6 @@ export async function calculateDistance(origin: string, destination: string): Pr
   }
 }
 
-/**
- * Parse distance range from string (e.g., "0-5", "10+", "<20")
- */
-export function parseDistanceRange(distanceStr: string): { min: number | null; max: number | null } | null {
-  try {
-    if (distanceStr.includes('-')) {
-      // Range format: "0-5"
-      const [min, max] = distanceStr.split('-').map(Number);
-      return { min, max };
-    } else if (distanceStr.startsWith('<')) {
-      // Less than format: "<20"
-      const max = Number(distanceStr.substring(1));
-      return { min: null, max };
-    } else if (distanceStr.startsWith('>') || distanceStr.endsWith('+')) {
-      // Greater than format: ">10" or "10+"
-      const min = Number(distanceStr.replace(/[>+]/g, ''));
-      return { min, max: null };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error parsing distance range:", error);
-    return null;
-  }
-}
 
 /**
  * Check if a job has time conflict with existing assignments
