@@ -4,17 +4,15 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 /**
- * Create a new announcement for an organization
+ * Create a new announcement for the user's active organization
  */
 export async function createAnnouncement({
-  orgId,
   title,
   content,
   isActive = true,
   pinnedUntil = null,
   metadata = {}
 }: {
-  orgId: string
   title: string
   content: string
   isActive?: boolean
@@ -23,20 +21,40 @@ export async function createAnnouncement({
 }) {
   const supabase = await createClient()
 
-  const { data: user, error: userError } = await supabase.auth.getUser()
-  if (userError || !user.user) {
-    throw new Error('Unauthorized')
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('Unauthorized: User not found')
   }
+
+  const activeOrgIdText = user.app_metadata?.active_org_id as string | undefined;
+  if (!activeOrgIdText) {
+    throw new Error('Unauthorized: No active organization selected');
+  }
+
+  // Get the UUID of the active organization
+  const { data: activeOrgData, error: activeOrgError } = await supabase
+    .from('orgs')
+    .select('id') // UUID
+    .eq('organization_id', activeOrgIdText) // TEXT active_org_id from JWT
+    .single();
+
+  if (activeOrgError || !activeOrgData) {
+    console.error("Error fetching active organization UUID:", activeOrgError);
+    throw new Error('Failed to identify active organization');
+  }
+  const activeOrgUuid = activeOrgData.id;
 
   const { data, error } = await supabase
     .from('org_announcements')
     .insert({
-      org_id: orgId,
-      user_id: user.user.id,
+      org_id: activeOrgUuid, // Use the UUID of the active org
+      user_id: user.id,
       title,
       content,
       is_active: isActive,
-      pinned_until: pinnedUntil ? pinnedUntil.toISOString() : null
+      pinned_until: pinnedUntil ? pinnedUntil.toISOString() : null,
+      // metadata is not a direct column in the provided snippet for org_announcements,
+      // if it exists, it should be added here. Assuming it's not for now.
     })
     .select()
     .single()
@@ -45,15 +63,16 @@ export async function createAnnouncement({
     throw new Error(`Failed to create announcement: ${error.message}`)
   }
 
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard') // Or a more specific path where announcements are shown
   return data
 }
 
 /**
  * Update an existing announcement
+ * Note: This function should also verify that the announcement belongs to the user's active org.
  */
 export async function updateAnnouncement({
-  id,
+  id, // announcement UUID
   title,
   content,
   isActive,
@@ -67,6 +86,43 @@ export async function updateAnnouncement({
 }) {
   const supabase = await createClient()
 
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('Unauthorized: User not found');
+  }
+
+  const activeOrgIdText = user.app_metadata?.active_org_id as string | undefined;
+  if (!activeOrgIdText) {
+    throw new Error('Unauthorized: No active organization selected');
+  }
+
+  // Get the UUID of the active organization
+  const { data: activeOrgData, error: activeOrgError } = await supabase
+    .from('orgs')
+    .select('id') // UUID
+    .eq('organization_id', activeOrgIdText)
+    .single();
+
+  if (activeOrgError || !activeOrgData) {
+    throw new Error('Failed to identify active organization for update');
+  }
+  const activeOrgUuid = activeOrgData.id;
+
+  // Verify the announcement belongs to the active organization before updating
+  const { data: announcementToUpdate, error: fetchError } = await supabase
+    .from('org_announcements')
+    .select('org_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !announcementToUpdate) {
+    throw new Error(`Announcement not found or error fetching: ${fetchError?.message || 'Not found'}`);
+  }
+
+  if (announcementToUpdate.org_id !== activeOrgUuid) {
+    throw new Error('Forbidden: Announcement does not belong to your active organization.');
+  }
+
   const updates: any = {}
   if (title !== undefined) updates.title = title
   if (content !== undefined) updates.content = content
@@ -77,6 +133,7 @@ export async function updateAnnouncement({
     .from('org_announcements')
     .update(updates)
     .eq('id', id)
+    // .eq('org_id', activeOrgUuid) // Double check, already verified above
     .select()
     .single()
 
@@ -90,14 +147,52 @@ export async function updateAnnouncement({
 
 /**
  * Delete an announcement
+ * Note: This function should also verify that the announcement belongs to the user's active org.
  */
-export async function deleteAnnouncement(id: string) {
+export async function deleteAnnouncement(id: string) { // announcement UUID
   const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('Unauthorized: User not found');
+  }
+
+  const activeOrgIdText = user.app_metadata?.active_org_id as string | undefined;
+  if (!activeOrgIdText) {
+    throw new Error('Unauthorized: No active organization selected');
+  }
+  
+  const { data: activeOrgData, error: activeOrgError } = await supabase
+    .from('orgs')
+    .select('id') // UUID
+    .eq('organization_id', activeOrgIdText)
+    .single();
+
+  if (activeOrgError || !activeOrgData) {
+    throw new Error('Failed to identify active organization for delete');
+  }
+  const activeOrgUuid = activeOrgData.id;
+
+  // Verify the announcement belongs to the active organization before deleting
+  const { data: announcementToDelete, error: fetchError } = await supabase
+    .from('org_announcements')
+    .select('org_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !announcementToDelete) {
+    throw new Error(`Announcement not found or error fetching: ${fetchError?.message || 'Not found'}`);
+  }
+
+  if (announcementToDelete.org_id !== activeOrgUuid) {
+    throw new Error('Forbidden: Announcement does not belong to your active organization.');
+  }
 
   const { error } = await supabase
     .from('org_announcements')
     .delete()
     .eq('id', id)
+    // .eq('org_id', activeOrgUuid) // Double check, already verified above
 
   if (error) {
     throw new Error(`Failed to delete announcement: ${error.message}`)
@@ -108,7 +203,7 @@ export async function deleteAnnouncement(id: string) {
 }
 
 /**
- * Get announcements for the current user's organization
+ * Get announcements for the current user's active organization
  */
 export async function getOrganizationAnnouncements({
   onlyActive = true,
@@ -119,26 +214,39 @@ export async function getOrganizationAnnouncements({
 } = {}) {
   const supabase = await createClient()
 
-  const { data: user, error: userError } = await supabase.auth.getUser()
-  if (userError || !user.user) {
-    throw new Error('Unauthorized')
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    // For public-facing scenarios, might return empty array instead of throwing
+    console.warn("getOrganizationAnnouncements: User not authenticated. Returning empty array.");
+    return [];
   }
 
-  // Get the user's organization ID
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('org_id')
-    .eq('id', user.user.id)
-    .single()
+  const activeOrgIdText = user.app_metadata?.active_org_id as string | undefined;
 
-  if (profileError || !profile?.org_id) {
-    throw new Error('User has no organization')
+  if (!activeOrgIdText) {
+    console.warn("getOrganizationAnnouncements: No active organization ID found in JWT. Returning empty array.");
+    return [];
   }
+
+  // Get the UUID of the active organization
+  const { data: activeOrgData, error: activeOrgFetchError } = await supabase
+    .from('orgs')
+    .select('id') // UUID
+    .eq('organization_id', activeOrgIdText) // TEXT active_org_id from JWT
+    .single();
+
+  if (activeOrgFetchError || !activeOrgData) {
+    console.warn(
+      `getOrganizationAnnouncements: Could not find org details for active_org_id ${activeOrgIdText}. Returning empty. Error: ${activeOrgFetchError?.message}`
+    );
+    return [];
+  }
+  const activeOrgUuid = activeOrgData.id;
 
   let query = supabase
     .from('org_announcements')
     .select('*')
-    .eq('org_id', profile.org_id)
+    .eq('org_id', activeOrgUuid) // Use the UUID of the active org
     .order('created_at', { ascending: false })
 
   if (onlyActive) {
@@ -153,7 +261,9 @@ export async function getOrganizationAnnouncements({
   const { data, error } = await query
 
   if (error) {
-    throw new Error(`Failed to fetch announcements: ${error.message}`)
+    // Log error but return empty array for resilience in UI
+    console.error(`Failed to fetch announcements for org UUID ${activeOrgUuid}: ${error.message}`);
+    return [];
   }
 
   return data || []
@@ -162,6 +272,8 @@ export async function getOrganizationAnnouncements({
 /**
  * Get recent engagements for a user and announcement
  * Used for deduplication and analytics
+ * This function is user-specific and announcement-specific, not directly org-scoped by active_org_id here.
+ * Org scoping is implicit via announcementId if announcements are org-specific.
  */
 export async function getRecentEngagements({
   announcementId,
@@ -174,12 +286,11 @@ export async function getRecentEngagements({
 }) {
   const supabase = await createClient()
 
-  const { data: user, error: userError } = await supabase.auth.getUser()
-  if (userError || !user.user) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     throw new Error('Unauthorized')
   }
 
-  // Calculate the time window
   const timeWindow = new Date()
   timeWindow.setSeconds(timeWindow.getSeconds() - timeWindowSeconds)
 
@@ -187,7 +298,7 @@ export async function getRecentEngagements({
     .from('announcement_engagements')
     .select('*')
     .eq('announcement_id', announcementId)
-    .eq('user_id', user.user.id)
+    .eq('user_id', user.id)
     .eq('engagement_type', engagementType)
     .gte('created_at', timeWindow.toISOString())
     .order('created_at', { ascending: false })
@@ -202,6 +313,7 @@ export async function getRecentEngagements({
 /**
  * Track user engagement with an announcement
  * Includes deduplication logic to prevent multiple identical engagements in short time periods
+ * This function is user-specific and announcement-specific.
  */
 export async function trackAnnouncementEngagement({
   announcementId,
@@ -218,12 +330,11 @@ export async function trackAnnouncementEngagement({
 }) {
   const supabase = await createClient()
 
-  const { data: user, error: userError } = await supabase.auth.getUser()
-  if (userError || !user.user) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     throw new Error('Unauthorized')
   }
 
-  // Add client timestamp to metadata
   const enrichedMetadata = {
     ...metadata,
     client_timestamp: new Date().toISOString(),
@@ -233,7 +344,6 @@ export async function trackAnnouncementEngagement({
     }
   }
 
-  // Check for recent duplicate engagements if deduplication is enabled
   if (deduplicate) {
     try {
       const recentEngagements = await getRecentEngagements({
@@ -242,32 +352,27 @@ export async function trackAnnouncementEngagement({
         timeWindowSeconds: deduplicationWindow
       })
 
-      // If there's a recent engagement of the same type, don't create a duplicate
       if (recentEngagements.length > 0) {
-        // For 'click' events, only deduplicate if the metadata URL matches
         if (engagementType === 'click' &&
             metadata.url &&
             recentEngagements.some(e => e.metadata?.url === metadata.url)) {
           return recentEngagements[0]
         }
-        // For view and dismiss events, always deduplicate
         else if (engagementType !== 'click') {
           return recentEngagements[0]
         }
       }
     } catch (err) {
-      // If deduplication check fails, continue with tracking anyway
       console.error('Deduplication check failed:', err)
     }
   }
 
-  // Insert the engagement record
   try {
     const { data, error } = await supabase
       .from('announcement_engagements')
       .insert({
         announcement_id: announcementId,
-        user_id: user.user.id,
+        user_id: user.id,
         engagement_type: engagementType,
         metadata: enrichedMetadata
       })
@@ -280,10 +385,7 @@ export async function trackAnnouncementEngagement({
 
     return data
   } catch (error) {
-    // Enhanced error handling
     console.error(`Error tracking ${engagementType} engagement:`, error)
-    
-    // Rethrow with more context
     if (error instanceof Error) {
       throw new Error(`Failed to track ${engagementType} engagement: ${error.message}`)
     } else {
@@ -293,15 +395,40 @@ export async function trackAnnouncementEngagement({
 }
 
 /**
- * Get analytics for announcements in an organization
+ * Get analytics for announcements in the user's active organization
  */
-export async function getAnnouncementAnalytics(orgId: string) {
+export async function getAnnouncementAnalytics() { // Removed orgId parameter
   const supabase = await createClient()
 
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('Unauthorized: User not found');
+  }
+
+  const activeOrgIdText = user.app_metadata?.active_org_id as string | undefined;
+  if (!activeOrgIdText) {
+    // Or return empty array if preferred for analytics display
+    throw new Error('Unauthorized: No active organization selected for analytics');
+  }
+
+  // Get the UUID of the active organization
+  const { data: activeOrgData, error: activeOrgFetchError } = await supabase
+    .from('orgs')
+    .select('id') // UUID
+    .eq('organization_id', activeOrgIdText)
+    .single();
+
+  if (activeOrgFetchError || !activeOrgData) {
+    console.error(`Error fetching org UUID for analytics (activeOrgIdText: ${activeOrgIdText}):`, activeOrgFetchError);
+    throw new Error('Failed to identify active organization for analytics');
+  }
+  const activeOrgUuid = activeOrgData.id;
+
+
   const { data, error } = await supabase
-    .from('announcement_analytics')
+    .from('announcement_analytics') // Assuming this view/table exists and has an org_id (UUID)
     .select('*')
-    .eq('org_id', orgId)
+    .eq('org_id', activeOrgUuid) // Filter by active org's UUID
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -313,12 +440,13 @@ export async function getAnnouncementAnalytics(orgId: string) {
 
 /**
  * Check if a user has seen an announcement
+ * This function is user-specific and announcement-specific.
  */
 export async function hasUserSeenAnnouncement(announcementId: string) {
   const supabase = await createClient()
 
-  const { data: user, error: userError } = await supabase.auth.getUser()
-  if (userError || !user.user) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     throw new Error('Unauthorized')
   }
 
@@ -326,7 +454,7 @@ export async function hasUserSeenAnnouncement(announcementId: string) {
     .from('announcement_engagements')
     .select('id')
     .eq('announcement_id', announcementId)
-    .eq('user_id', user.user.id)
+    .eq('user_id', user.id)
     .eq('engagement_type', 'view')
     .limit(1)
 

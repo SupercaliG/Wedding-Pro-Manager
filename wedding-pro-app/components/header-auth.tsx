@@ -1,16 +1,47 @@
+"use client";
+
 import { signOutAction } from "@/app/actions";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/client"; // Changed to client-side Supabase
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
-export default async function AuthButton() {
-  const supabase = await createClient();
+export default function AuthButton() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient(); // Initialize client-side Supabase
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      setLoading(false);
+    };
+
+    getUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  if (loading) {
+    // Optional: render a loading state or null
+    return (
+      <div className="flex gap-2">
+        <Button size="sm" variant={"outline"} disabled>Loading...</Button>
+      </div>
+    );
+  }
 
   if (!hasEnvVars) {
     return (

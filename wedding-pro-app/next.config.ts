@@ -7,6 +7,16 @@ const baseConfig: NextConfig = {
   experimental: {
     // example: scroll restoration, etc.
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 /** next-pwa options — only for Webpack builds */

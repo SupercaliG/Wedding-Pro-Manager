@@ -4,6 +4,8 @@ import Link from "next/link"; // Keep for potential direct use if any, though si
 import DashboardAnnouncementHandler from "@/components/dashboard-announcement-handler";
 import { isUserApproved, getCurrentUserProfile } from "@/utils/supabase/auth-helpers";
 import { NotificationCenterWrapper } from "@/components/notifications/notification-center-wrapper";
+import { ThemeSwitcher } from "@/components/theme-switcher"; // Added for dashboard header
+import { OrganizationSwitcher } from "@/components/organization-switcher"; // Added for org switching
 import AnnouncementModal from "@/components/announcement-modal";
 import { AnnouncementProvider } from "@/contexts/announcement-context";
 import GlobalDashboardLayout from "@/components/ui/demo"; // Renamed from SidebarDemo
@@ -144,20 +146,21 @@ export default async function DashboardLayout({
       <DashboardAnnouncementHandler />
       <GlobalDashboardLayout userProfile={profile} navLinks={navLinks}>
         {/* Header with notification center - can be part of GlobalDashboardLayout or kept here if specific to this section */}
-        <div className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700 px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700 px-6 py-3 flex justify-between items-center sticky top-0 z-40 rounded-tl-2xl"> {/* Adjusted z-index & added rounded-tl-2xl */}
           {/* Hamburger for mobile can be added here if GlobalDashboardLayout doesn't handle it for main content area */}
           <h1 className="text-lg font-semibold">
             {/* TODO: Make this title dynamic based on the current page */}
-            Wedding Pro
+            Dashboard
           </h1>
           <div className="flex items-center space-x-4">
+            <OrganizationSwitcher />
+            <ThemeSwitcher />
             <NotificationCenterWrapper />
-            {/* Theme switcher can be added here */}
           </div>
         </div>
         
         {/* Page content */}
-        <div className="p-4 sm:p-6 md:p-8"> {/* Adjusted padding */}
+        <div className="p-4 sm:p-6 md:p-8 bg-white dark:bg-neutral-900 flex-1"> {/* Adjusted padding & Added matching background & flex-1, removed rounded-tl-2xl */}
           {children}
         </div>
         

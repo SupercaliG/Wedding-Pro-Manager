@@ -107,6 +107,31 @@ export const createAPIClient = async (req: Request) => {
 };
 
 /**
+ * Creates a Supabase client with service role privileges for admin operations.
+ * This client has full admin access and should only be used server-side.
+ * WARNING: Never expose this client or its key to the client-side.
+ */
+export const createServiceRoleClient = () => {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY environment variable is required for admin operations"
+    );
+  }
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        get() { return undefined; },
+        set() { /* no-op */ },
+        remove() { /* no-op */ },
+      },
+    }
+  );
+};
+
+/**
  * LEGACY EXPORT - Only for backward compatibility
  * @deprecated Use createClient() or createAPIClient() directly
  */

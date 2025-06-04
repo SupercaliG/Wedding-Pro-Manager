@@ -34,6 +34,8 @@ export type NotificationEventType =
   | 'drop_request_rejected'   // When a drop request is rejected
   | 'job_interest_expressed'  // When an employee expresses interest in a job
   | 'job_interest_withdrawn'  // When an employee withdraws interest in a job
+  | 'user_approved'           // When a user's account is approved
+  | 'user_rejected'           // When a user's account is rejected
   | 'org_announcement';       // When an organization makes an announcement
 
 /**
@@ -504,7 +506,7 @@ export class NotificationService {
           payload.channel,
           'VALIDATION_ERROR',
           errorMessage,
-          undefined,
+          payload.userId, // Will be null/undefined here, but pass for consistency
           eventType
         );
         
@@ -515,9 +517,8 @@ export class NotificationService {
         };
       }
       
-      // First, get the user profile to avoid multiple database calls
+      // Get user profile and preferences once
       const { profile, error: profileError } = await this.getUserProfileWithPreferences(payload.userId);
-      
       if (profileError || !profile) {
         const errorMessage = profileError?.message || 'User not found';
         
@@ -526,7 +527,8 @@ export class NotificationService {
           'USER_NOT_FOUND',
           errorMessage,
           payload.userId,
-          eventType
+          eventType,
+          { error: profileError }
         );
         
         return {
@@ -535,55 +537,40 @@ export class NotificationService {
           channel: payload.channel,
         };
       }
-      
-      // Format the message appropriately for the channel
+
+      // Format message based on channel (placeholder for now)
       const formattedMessage = this.formatMessageForChannel(
         payload.channel,
-        { title: payload.title, body: payload.body }
+        payload.title,
+        payload.body
       );
-      
-      // Send to the appropriate channel, passing the profile to avoid refetching
+
       switch (payload.channel) {
         case 'sms':
-          return this.sendSMSNotification(
-            payload.userId,
-            formattedMessage,
-            payload.metadata,
-            profile
-          );
+          return this.sendSMSNotification(payload.userId, formattedMessage, payload.metadata, profile);
         case 'email':
-          return this.sendEmailNotification(
-            payload.userId,
-            formattedMessage,
-            payload.metadata,
-            profile
-          );
+          return this.sendEmailNotification(payload.userId, formattedMessage, payload.metadata, profile);
         case 'in-app':
-          return this.sendInAppNotification(
-            payload.userId,
-            formattedMessage,
-            payload.metadata,
-            profile
-          );
+          return this.sendInAppNotification(payload.userId, formattedMessage, payload.metadata, profile);
         default:
-          const unknownChannelError = `Unknown notification channel: ${payload.channel}`;
+          const errorMessage = `Unsupported channel: ${payload.channel}`;
           
           await logger.logFailure(
-            payload.channel as NotificationChannel,
-            'UNKNOWN_CHANNEL',
-            unknownChannelError,
+            payload.channel,
+            'UNSUPPORTED_CHANNEL',
+            errorMessage,
             payload.userId,
             eventType
           );
           
           return {
             success: false,
-            error: unknownChannelError,
-            channel: payload.channel as NotificationChannel,
+            error: errorMessage,
+            channel: payload.channel,
           };
       }
     } catch (error: any) {
-      console.error(`Error in sendNotification for channel ${payload.channel}:`, error);
+      console.error(`Error sending ${payload.channel} notification:`, error);
       
       await logger.logFailure(
         payload.channel,
@@ -603,380 +590,256 @@ export class NotificationService {
   }
 
   /**
-   * Get user profile with notification preferences
-   * @param userId The user ID to fetch preferences for
-   * @returns The user profile with notification preferences, or null if not found
+   * Get user profile along with their notification preferences and email.
+   * This is a helper to avoid multiple fetches.
    */
   private async getUserProfileWithPreferences(userId: string) {
-    try {
-      const { data: profile, error: profileError } = await this.supabase
-        .from('profiles')
-        .select('email, phone_number, notification_preferences')
-        .eq('id', userId)
-        .single();
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select(`
+        id,
+        email,
+        phone_number,
+        notification_preferences
+      `)
+      .eq('id', userId)
+      .single();
 
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        return { profile: null, error: profileError };
-      }
-
-      return { profile, error: null };
-    } catch (error: any) {
-      console.error('Exception fetching user profile:', error);
+    if (error) {
+      console.error('Error fetching user profile with preferences:', error);
       return { profile: null, error };
     }
+    return { profile: data, error: null };
   }
 
   /**
-   * Format message content based on channel
-   * @param channel The notification channel
-   * @param message The original message
-   * @returns Formatted message for the specific channel
+   * Formats the message title and body based on the channel.
+   * (Placeholder - can be expanded for channel-specific formatting)
    */
   private formatMessageForChannel(
     channel: NotificationChannel,
-    message: { title: string; body: string }
+    title: string,
+    body: string
   ): { title: string; body: string } {
     switch (channel) {
       case 'sms':
-        // SMS should be concise, combine title and body with character limit
-        const smsPrefix = message.title ? `${message.title}: ` : '';
-        const smsBody = `${smsPrefix}${message.body}`;
-        // Truncate if too long (SMS typically has 160 char limit)
-        const truncatedSms = smsBody.length > 160
-          ? smsBody.substring(0, 157) + '...'
-          : smsBody;
-        return { title: '', body: truncatedSms };
-        
-      case 'email':
-        // Email can have rich HTML content
-        const htmlBody = `
-          <h2>${message.title}</h2>
-          <p>${message.body.replace(/\n/g, '<br>')}</p>
-        `;
-        return { title: message.title, body: htmlBody };
-        
+        // SMS might prefer shorter messages or no title
+        return { title: '', body: `${title}: ${body}`.substring(0, 1600) }; // Max SMS length
+      // case 'email':
+      // Email can handle HTML, longer content, etc.
+      // return { title, body }; // Default for now
       case 'in-app':
       default:
-        // In-app notifications use the original format
-        return { title: message.title, body: message.body };
+        return { title, body };
     }
   }
 
+
   /**
-   * Send notifications through all enabled channels based on user preferences
-   * @param event The notification event
-   * @returns A promise that resolves to an array of NotificationResult, one for each channel
+   * Send a notification for a specific event type.
+   * This method determines the appropriate channels based on user preferences
+   * and event type, then sends the notification.
    */
   async sendNotificationForEvent(event: NotificationEvent): Promise<NotificationResult[]> {
-    // Initialize results array
+    const { eventType, userId, title, body, metadata } = event;
     const results: NotificationResult[] = [];
-    
-    // Get logger if available
+
+    // Get logger
     const logger = getNotificationLogger(this.supabase);
 
     try {
-      // Log the event attempt
-      await logger.logAttempt(
-        'in-app', // Use in-app as the default channel for the overall event
-        event.userId,
-        event.eventType,
-        {
-          title: event.title,
-          eventType: event.eventType,
-          metadata: event.metadata
-        }
-      );
-      
-      // 1. Get the user's profile with notification preferences (single query)
-      const { profile, error: profileError } = await this.getUserProfileWithPreferences(event.userId);
-
+      const { profile, error: profileError } = await this.getUserProfileWithPreferences(userId);
       if (profileError || !profile) {
-        const errorMessage = profileError?.message || 'User not found';
-        console.error('Error fetching user profile for notifications:', profileError);
+        const errorMessage = profileError?.message || 'User not found for event notification';
         
-        // Log the failure
         await logger.logFailure(
-          'in-app',
-          'USER_NOT_FOUND',
+          'multi', // Channel is multi as it's event-based
+          'USER_NOT_FOUND_FOR_EVENT',
           errorMessage,
-          event.userId,
-          event.eventType,
-          { error: profileError }
+          userId,
+          eventType,
+          { error: profileError, title }
         );
         
-        return [{
-          success: false,
-          error: errorMessage,
-          channel: 'in-app', // Default to in-app as fallback
-        }];
+        return [{ success: false, error: errorMessage, channel: 'multi' }];
       }
 
-      // 2. Extract notification preferences
-      const notificationPreferences = profile.notification_preferences as Record<string, boolean> || {};
+      const preferences = profile.notification_preferences as Record<string, any> || {};
       
-      // 3. Define channels to attempt
-      const channels: NotificationChannel[] = ['sms', 'email', 'in-app'];
-      
-      // 4. Send notifications through each enabled channel
-      // Use Promise.allSettled to ensure all enabled channels are attempted regardless of failures
+      // Determine which channels are enabled for this event type or generally
+      // This logic can be expanded (e.g., event-specific preferences)
+      const channels: NotificationChannel[] = [];
+      if (preferences.email) channels.push('email');
+      if (preferences.sms) channels.push('sms');
+      if (preferences['in-app']) channels.push('in-app');
+      // Add more complex logic here if needed, e.g., based on eventType
+
+      if (channels.length === 0) {
+        await logger.logSkipped(
+          'multi',
+          'NO_CHANNELS_ENABLED',
+          'No notification channels enabled for user or event.',
+          userId,
+          eventType,
+          { title }
+        );
+        return [{ success: false, error: 'No channels enabled for this user/event', channel: 'multi', status: 'disabled' }];
+      }
+
       const channelPromises = channels.map(async (channel) => {
-        try {
-          // Check if this channel is enabled for the user
-          const channelKey = channel === 'in-app' ? 'in-app' : channel;
-          const isEnabled = notificationPreferences[channelKey];
-
-          if (!isEnabled) {
-            console.log(`${channel} notifications disabled for user ${event.userId}`);
-            
-            // No need to log disabled channels as failures
-            return {
-              success: false,
-              error: `${channel} notifications are disabled for this user`,
-              channel,
-              status: 'disabled',
-            };
-          }
-
-          // Format message appropriately for this channel
-          const formattedMessage = this.formatMessageForChannel(channel, {
-            title: event.title,
-            body: event.body,
-          });
-
-          // Send notification through this channel
-          const result = await this.sendNotification({
-            userId: event.userId,
-            title: formattedMessage.title,
-            body: formattedMessage.body,
-            channel,
-            metadata: {
-              ...event.metadata,
-              eventType: event.eventType,
-            },
-          });
-          
-          return result;
-        } catch (channelError: any) {
-          console.error(`Error sending ${channel} notification:`, channelError);
-          
-          // Log the channel-specific error
-          await logger.logFailure(
-            channel,
-            'CHANNEL_ERROR',
-            channelError.message || `Unknown error sending ${channel} notification`,
-            event.userId,
-            event.eventType,
-            { error: channelError }
-          );
-          
-          return {
-            success: false,
-            error: channelError.message || `Unknown error sending ${channel} notification`,
-            channel,
-          };
-        }
+        const formattedMessage = this.formatMessageForChannel(channel, title, body);
+        return this.sendNotification({
+          userId,
+          title: formattedMessage.title,
+          body: formattedMessage.body,
+          channel,
+          metadata: { ...metadata, eventType }, // Ensure eventType is in metadata
+        });
       });
 
-      // Wait for all channel attempts to complete
-      const channelResults = await Promise.allSettled(channelPromises);
-      
-      // Process results
-      let anySuccess = false;
-      
-      channelResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          results.push(result.value);
-          
-          // Check if any channel succeeded
-          if (result.value.success) {
-            anySuccess = true;
-          }
-        } else {
-          console.error('Channel notification promise rejected:', result.reason);
-          // Use a valid channel type as fallback
-          const errorResult = {
-            success: false,
-            error: result.reason?.message || 'Unknown error in notification channel',
-            channel: 'in-app' as NotificationChannel, // Use in-app as fallback for unknown channel
-          };
-          
-          results.push(errorResult);
-          
-          // Log the promise rejection
-          logger.logFailure(
-            'in-app',
-            'PROMISE_REJECTION',
-            errorResult.error,
-            event.userId,
-            event.eventType
-          );
-        }
-      });
-      
-      // Log overall event success/failure
-      if (anySuccess) {
+      const channelResults = await Promise.all(channelPromises);
+      results.push(...channelResults);
+
+      // Log overall event notification attempt and results
+      const allSuccessful = results.every(r => r.success || r.status === 'disabled');
+      if (allSuccessful) {
         await logger.logSuccess(
-          'in-app',
-          event.userId,
-          event.eventType,
-          undefined,
-          {
-            channels: results.map(r => ({ channel: r.channel, success: r.success })),
-            title: event.title
+          'multi',
+          userId,
+          eventType,
+          results.find(r => r.notificationId)?.notificationId || 'N/A', // Use first available ID
+          { 
+            title, 
+            channelsAttempted: channels,
+            results: JSON.stringify(results.map(r => ({ channel: r.channel, success: r.success, status: r.status, error: r.error?.substring(0,100) }))) 
           }
         );
       } else {
         await logger.logFailure(
-          'in-app',
-          'ALL_CHANNELS_FAILED',
-          'All notification channels failed',
-          event.userId,
-          event.eventType,
-          { results }
+          'multi',
+          'PARTIAL_FAILURE_EVENT',
+          'One or more channels failed for event notification.',
+          userId,
+          eventType,
+          { 
+            title, 
+            channelsAttempted: channels,
+            results: JSON.stringify(results.map(r => ({ channel: r.channel, success: r.success, status: r.status, error: r.error?.substring(0,100) })))
+          }
         );
       }
 
-      return results;
     } catch (error: any) {
-      console.error('Error in sendNotificationForEvent:', error);
+      console.error(`Error processing event notification ${eventType} for user ${userId}:`, error);
       
-      // Log the overall failure
       await logger.logFailure(
-        'in-app',
-        'EVENT_ERROR',
-        error.message || 'Unknown error sending multi-channel notification',
-        event.userId,
-        event.eventType,
-        { error }
+        'multi',
+        'EXCEPTION_EVENT',
+        error.message || `Unknown error processing event ${eventType}`,
+        userId,
+        eventType,
+        { error: error.stack, title }
       );
       
-      return [{
-        success: false,
-        error: error.message || 'Unknown error sending multi-channel notification',
-        channel: 'in-app', // Default to in-app as fallback
-      }];
+      results.push({ success: false, error: error.message, channel: 'multi' });
     }
+    return results;
   }
-  
+
+
   /**
-   * Send a notification to multiple channels
-   * @param payload The base notification payload
-   * @param channels The channels to send to
-   * @returns A promise that resolves to an array of NotificationResult
+   * Sends a notification to multiple users across multiple preferred channels.
+   * This is a higher-level function useful for things like announcements.
+   * 
+   * @param userIds Array of user IDs to notify.
+   * @param title The title of the notification.
+   * @param body The body/content of the notification.
+   * @param metadata Optional metadata, including eventType.
+   * @returns A promise that resolves to an array of results, one for each user-channel combination.
    */
   async sendMultiChannelNotification(
-    payload: Omit<NotificationPayload, 'channel'>,
-    channels: NotificationChannel[]
+    userIds: string[],
+    title: string,
+    body: string,
+    metadata: Record<string, any> = {} // eventType should be in metadata if applicable
   ): Promise<NotificationResult[]> {
-    const results: NotificationResult[] = [];
+    const allResults: NotificationResult[] = [];
     const logger = getNotificationLogger(this.supabase);
-    const eventType = payload.metadata?.eventType;
-    
-    // Log the multi-channel attempt
-    await logger.logAttempt(
-      'multi',
-      payload.userId,
-      eventType,
-      {
-        channels: channels.join(','),
-        title: payload.title
-      }
-    );
-    
-    // Try each channel independently, ensuring failures in one don't prevent others
-    for (const channel of channels) {
+    const eventType = metadata.eventType || 'batch_notification'; // Default eventType
+
+    for (const userId of userIds) {
       try {
-        const result = await this.sendNotification({
-          ...payload,
-          channel,
+        const { profile, error: profileError } = await this.getUserProfileWithPreferences(userId);
+        if (profileError || !profile) {
+          const errorMessage = profileError?.message || `User ${userId} not found for multi-channel notification.`;
+          logger.logFailure('multi-user', 'USER_NOT_FOUND_BATCH', errorMessage, userId, eventType, { title });
+          allResults.push({ success: false, error: errorMessage, channel: 'multi-user', userId });
+          continue;
+        }
+
+        const preferences = profile.notification_preferences as Record<string, any> || {};
+        const channelsToTry: NotificationChannel[] = [];
+        if (preferences.email) channelsToTry.push('email');
+        if (preferences.sms) channelsToTry.push('sms');
+        if (preferences['in-app']) channelsToTry.push('in-app');
+
+        if (channelsToTry.length === 0) {
+          logger.logSkipped('multi-user', 'NO_CHANNELS_ENABLED_BATCH', `No channels for user ${userId}.`, userId, eventType, { title });
+          allResults.push({ success: false, error: 'No channels enabled', channel: 'multi-user', userId, status: 'disabled' });
+          continue;
+        }
+
+        const userChannelPromises = channelsToTry.map(channel => {
+          const formattedMessage = this.formatMessageForChannel(channel, title, body);
+          return this.sendNotification({
+            userId,
+            title: formattedMessage.title,
+            body: formattedMessage.body,
+            channel,
+            metadata, // Pass along original metadata
+          });
         });
         
-        results.push(result);
+        const userResults = await Promise.all(userChannelPromises);
+        allResults.push(...userResults.map(r => ({ ...r, userId }))); // Add userId to each result for context
+
+        // Log per-user summary for multi-user batch
+        const userOverallSuccess = userResults.every(r => r.success || r.status === 'disabled');
+        if (userOverallSuccess) {
+          logger.logSuccess('multi-user', userId, eventType, 'N/A', {
+            title,
+            channelsAttempted: channelsToTry,
+            results: JSON.stringify(userResults.map(r => ({ channel: r.channel, success: r.success, status: r.status })))
+          });
+        } else {
+          logger.logFailure('multi-user', 'PARTIAL_FAILURE_BATCH_USER', `Failures for user ${userId}.`, userId, eventType, {
+            title,
+            channelsAttempted: channelsToTry,
+            results: JSON.stringify(userResults.map(r => ({ channel: r.channel, success: r.success, status: r.status, error: r.error?.substring(0,100) })))
+          });
+        }
+
       } catch (error: any) {
-        // If a channel completely fails with an exception, log it but continue with other channels
-        console.error(`Exception in channel ${channel} during multi-channel notification:`, error);
-        
-        await logger.logFailure(
-          channel,
-          'UNCAUGHT_EXCEPTION',
-          error.message || `Uncaught error in ${channel} notification`,
-          payload.userId,
-          eventType,
-          { error: error.stack }
-        );
-        
-        // Add a failure result for this channel
-        results.push({
-          success: false,
-          error: error.message || `Uncaught error in ${channel} notification`,
-          channel: channel,
-        });
+        const errorMessage = error.message || `Unknown error for user ${userId} in multi-channel batch.`;
+        logger.logFailure('multi-user', 'EXCEPTION_BATCH_USER', errorMessage, userId, eventType, { title, error: error.stack });
+        allResults.push({ success: false, error: errorMessage, channel: 'multi-user', userId });
       }
     }
-    
-    // Log overall success/failure
-    const allSucceeded = results.every(r => r.success);
-    const someSucceeded = results.some(r => r.success);
-    
-    if (allSucceeded) {
-      await logger.logSuccess(
-        'multi',
-        payload.userId,
-        eventType,
-        undefined,
-        {
-          channels: channels.join(','),
-          results: JSON.stringify(results.map(r => ({
-            channel: r.channel,
-            success: r.success,
-            notificationId: r.notificationId
-          })))
-        }
-      );
-    } else if (someSucceeded) {
-      // Partial success
-      await logger.logSuccess(
-        'multi',
-        payload.userId,
-        eventType,
-        undefined,
-        {
-          status: 'PARTIAL_SUCCESS',
-          channels: channels.join(','),
-          results: JSON.stringify(results.map(r => ({
-            channel: r.channel,
-            success: r.success,
-            error: r.error,
-            notificationId: r.notificationId
-          })))
-        }
-      );
-    } else {
-      // Complete failure
-      await logger.logFailure(
-        'multi',
-        'ALL_CHANNELS_FAILED',
-        'All notification channels failed',
-        payload.userId,
-        eventType,
-        {
-          channels: channels.join(','),
-          results: JSON.stringify(results.map(r => ({
-            channel: r.channel,
-            error: r.error
-          })))
-        }
-      );
-    }
-    
-    return results;
+    return allResults;
   }
 }
 
-// Create a factory function to get the notification service
+/**
+ * Factory function to create a NotificationService instance
+ * @param supabaseClient Optional Supabase client instance
+ * @returns A NotificationService instance
+ */
 export function createNotificationService(
-  supabaseClient: ReturnType<typeof createClient<Database>>
+  supabaseClient?: ReturnType<typeof createClient<Database>>
 ): NotificationService {
-  return new NotificationService(supabaseClient);
+  const client = supabaseClient || createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  return new NotificationService(client);
 }

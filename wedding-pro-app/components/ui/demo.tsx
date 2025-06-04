@@ -32,19 +32,7 @@ export default function GlobalDashboardLayout({
   userProfile,
   navLinks,
 }: GlobalDashboardLayoutProps) {
-  const [open, setOpen] = useState(false); // This controls the open state for the Sidebar component instance
-  // To use animate from context for the sign out button, we'd typically call useSidebar here.
-  // However, GlobalDashboardLayout IS the direct parent providing Sidebar, which then provides context.
-  // The 'animate={true}' is passed to Sidebar. So, within SidebarLink (used for nav items), useSidebar().animate works.
-  // For the custom sign-out button, we need to ensure it behaves consistently.
-  // The 'animate' prop for the Sidebar component itself is set to true below.
-  // Let's assume 'animate' should behave as if it's true for the sign out button's text visibility.
-  // The TS error is because 'animate' is not in the local scope of the return statement for the sign out button.
-  // We can pass the 'animate' prop explicitly or retrieve it if GlobalDashboardLayout itself were a child of SidebarProvider.
-  // Since GlobalDashboardLayout *contains* the SidebarProvider (via the Sidebar component),
-  // the most straightforward way is to use the 'animate' value that's passed to the Sidebar component.
-  // The 'animate' prop of the <Sidebar> component is hardcoded to `true` on line 96.
-  // So, for the sign-out button's motion.span, we can use this known value.
+  // const [open, setOpen] = useState(false); // 'open' state removed as desktop sidebar is always open. Mobile manages its own.
 
   const userAvatar = userProfile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop";
   const userName = userProfile?.full_name || "User";
@@ -101,20 +89,22 @@ export default function GlobalDashboardLayout({
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1",
-        "h-screen" // Use h-screen for full height
+        "flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 border border-neutral-200 dark:border-neutral-700", // Added border
+        "h-screen", // Use h-screen for full height
+        "rounded-md", // Added for curve
+        "overflow-hidden" // Added to ensure children respect rounded corners
       )}
     >
-      <Sidebar open={open} setOpen={setOpen} animate={true}> {/* Ensure animate is true or passed as prop */}
+      <Sidebar> {/* Removed open, setOpen, animate props */}
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            {open ? <Logo /> : <LogoIcon />}
+            {<Logo />} {/* Always show full logo as desktop sidebar is always open */}
             <div className="mt-8 flex flex-col gap-2">
               {Object.entries(groupedLinks).map(([section, linksInSection]) => (
                 <React.Fragment key={section}>
-                  {section !== "General" && ( // Don't show header for "General" or if it's the only section
+                  {section !== "General" && (
                     <div className="pt-2 pb-1 text-xs uppercase text-neutral-500 dark:text-neutral-400 font-semibold px-1">
-                       {open || !true ? section : ""} {/* Show section only if sidebar is open or animation is off */}
+                       {section} {/* Section headers always visible on desktop */}
                     </div>
                   )}
                   {linksInSection.map((link, idx) => (
@@ -146,23 +136,21 @@ export default function GlobalDashboardLayout({
               <button
                 type="submit"
                 className={cn(
-                  "flex items-center justify-start gap-2 group/sidebar py-2 w-full text-left",
-                  "hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md",
-                  // Match SidebarLink padding if open or not for alignment
-                  open ? "px-[10px]" : "px-[10px]" // Adjust px if icon size/gap changes in SidebarLink
+                  "flex items-center justify-start gap-2 group/sidebar py-2 w-full text-left", // Base styles from SidebarLink
+                  "hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md" // Hover/rounding
+                  // Removed explicit px, relies on parent DesktopSidebar's px-4
                 )}
               >
                 <LogOut className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-                <motion.span
-                  animate={{
-                    // Use the 'true' value passed to Sidebar's animate prop, or manage a separate animate state/prop if it needs to be dynamic here
-                    display: true ? (open ? "inline-block" : "none") : "inline-block",
-                    opacity: true ? (open ? 1 : 0) : 1,
-                  }}
+                <span // Changed from motion.span, text always visible on desktop
+                  // animate={{
+                  //   display: "inline-block", // Always display
+                  //   opacity: 1, // Always visible
+                  // }}
                   className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
                 >
                   Sign Out
-                </motion.span>
+                </span>
               </button>
             </form>
           </div>
@@ -174,7 +162,7 @@ export default function GlobalDashboardLayout({
         {/* <div className="bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 px-8 py-4 flex justify-between items-center">
           <h1 className="text-xl font-semibold">Page Title</h1>
         </div> */}
-        <main className="p-2 md:p-6 flex-1">
+        <main className="flex-1"> {/* Removed padding here, will be handled by child layouts */}
           {children}
         </main>
       </div>

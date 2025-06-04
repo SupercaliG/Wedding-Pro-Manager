@@ -102,6 +102,14 @@
       "recommendedSubtasks": 5,
       "expansionPrompt": "Divide the AI feature flags implementation into subtasks for feature flag system design, role matching AI implementation, scheduling copilot implementation, feedback collection mechanism, and metrics analysis.",
       "reasoning": "High complexity due to AI integration, feature flag management, and feedback collection requiring careful implementation and analysis."
+    },
+    {
+      "taskId": 54,
+      "taskTitle": "Implement Multi-Organization Support and Organization ID Generation",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the implementation into: 1) Organization ID generation logic, 2) User-organization membership table design and migration, 3) Active organization context management, 4) Authentication and session management updates, 5) RLS and middleware updates, 6) UI for organization selection and switching, 7) Comprehensive testing strategy for all scenarios.",
+      "reasoning": "This task involves multiple architectural changes (database schema, session management, RLS, authentication flow, UI updates) and requires careful coordination to ensure data integrity, security, and user experience. The high complexity is due to the need for robust uniqueness checks, multi-tenancy support, session state management, and thorough regression testing across all affected systems[3][4][5]."
     }
   ]
 }

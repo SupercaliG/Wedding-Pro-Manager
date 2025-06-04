@@ -119,7 +119,7 @@ export interface Database {
           phone_number: string | null
           avatar_url: string | null
           role: string | null
-          organization_id: string | null
+          org_id: string | null
           notification_preferences: Json
         }
         Insert: {
@@ -132,7 +132,7 @@ export interface Database {
           phone_number?: string | null
           avatar_url?: string | null
           role?: string | null
-          organization_id?: string | null
+          org_id?: string | null
           notification_preferences?: Json
         }
         Update: {
@@ -145,7 +145,7 @@ export interface Database {
           phone_number?: string | null
           avatar_url?: string | null
           role?: string | null
-          organization_id?: string | null
+          org_id?: string | null
           notification_preferences?: Json
         }
       }

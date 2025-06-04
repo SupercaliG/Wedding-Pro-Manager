@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles RENAME COLUMN organization_id TO org_id;
